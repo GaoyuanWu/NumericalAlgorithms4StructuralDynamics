@@ -10,10 +10,13 @@
 
 import numpy as np 
 
+'''
 # Get 1D mesh for the 2D plane frame
 # node_coord -> initial node coordinates for the 2D frame; 2D array
 # B -> Connectivity matrix representing the relationship between nodes & elements
 # h -> mesh size; num = np.floor(length / h)
+'''
+
 def get1DMesh(Ini_nodecoord,B,h):
     Ini_nodeNum = Ini_nodecoord.shape[0] # Initial node numbers
     Ini_eleNum = B.shape[0] # Initial element numbers
@@ -84,7 +87,7 @@ def get1DMesh(Ini_nodecoord,B,h):
                 New_B[New_ele_index,1] = temp_node_index_new[j]
                 New_ele_index += 1
                 New_node_index += 1
-    return New_nodecoord,New_B
+    return New_nodecoord,New_B + 1, Ini_to_New #+1: Back to physical index..starting from 1
        
             
 

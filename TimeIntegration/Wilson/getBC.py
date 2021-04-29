@@ -1,9 +1,8 @@
 ###################################################### 
-# This file helps you to get stiffness/mass          # 
-#  matrices for a 2-D shear building                 #               
-# (plane frames)                                     #
-# Then matrices can then be used for dynamic analysis# 
-# of structures.                                     #
+# This file helps you to apply boundary conditions,  # 
+#  transfering initial M & K into new matrices;      #               
+# which can then be used in time integration         #                                    
+#                                                    #
 #                                                    #
 # Created by Gaoyuan WU, Phd Student @ Princeton     # 
 ######################################################
@@ -23,6 +22,7 @@ import numpy as np
 # {k} -> Vector for stiffness of each floor; 1-D array; top to bottom
 # {m} -> Vector for lumped-mass of each floor; 1-D array
 '''
+
 def getMK_lumpedmass(n,k,m):
     M = np.diag(m)# Mass Matrix
     K = np.zeros([n,n])   # Initialized Stiffness Matrix
@@ -51,7 +51,8 @@ def getMK_lumpedmass(n,k,m):
     return M,K # End of Lumped Mass
 
 
-'''
+
+     
 # Method 2, Finite-element method (FEM)
 # Features: 
 # * more accurate;
@@ -66,7 +67,6 @@ def getMK_lumpedmass(n,k,m):
 # ele_E -> Young's modulus; 1-D array
 # ele_A -> Area of the element; 1-D array
 # ele_I -> moment of inertia of the elemennt; 1-D array
-'''
 
 #Local mass matrix
 def local_M(m,l):
@@ -127,8 +127,8 @@ def getMK_FEM(joint_coord,B,ele_m,ele_E,ele_A,ele_I):
 
     
     for i in range(ele_num):
-        ele_u[i] = joint_coord[B[i,1]-1,0] - joint_coord[B[i,0]-1,0] # ele X-difference
-        ele_v[i] = joint_coord[B[i,1]-1,1] - joint_coord[B[i,0]-1,1] # ele Y-difference
+        ele_u[i] = joint_coord[B[i,1],0] - joint_coord[B[i,0],0] # ele X-difference
+        ele_v[i] = joint_coord[B[i,1],1] - joint_coord[B[i,0],1] # ele Y-difference
         ele_l[i] = np.sqrt(ele_u[i]**2 + ele_v[i]**2) # ele length
         ele_uni[i,:] = (np.vstack([ele_u[i],ele_v[i]]).T) / ele_l[i] # ele unit vector
         if ele_v[i] >= 0:
@@ -143,8 +143,8 @@ def getMK_FEM(joint_coord,B,ele_m,ele_E,ele_A,ele_I):
         ele_M[i,:,:] = (trans_temp.T @ ele_M[i,:,:]) @ trans_temp # To Global M for ele
 
         #Put ele-matrix into global matrix
-        nodei_temp = B[i,0] - 1
-        nodej_temp = B[i,1] - 1
+        nodei_temp = B[i,0]
+        nodej_temp = B[i,1]
 
         Glo_K[3*nodei_temp:3*nodei_temp+3, 3*nodei_temp:3*nodei_temp+3] += ele_K[i,:3,:3]
         Glo_K[3*nodej_temp:3*nodej_temp+3, 3*nodei_temp:3*nodei_temp+3] += ele_K[i,3:,:3]
