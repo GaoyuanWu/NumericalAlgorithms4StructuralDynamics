@@ -45,7 +45,7 @@ def get1DMesh(Ini_nodecoord,B,h):
     New_node_index = 0
     New_ele_index = 0
     Ini_node_index = [] # List storing old node already in new node list
-    Ini_to_New = np.zeros((Ini_nodeNum)) # Representing relationship between initial node-index and new node-index
+    Ini_to_New = np.zeros((Ini_nodeNum)).astype(int) # Representing relationship between initial node-index and new node-index
     
     # Creating new B and new Node_coord
     for i in range(Ini_eleNum):

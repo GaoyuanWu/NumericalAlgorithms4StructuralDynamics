@@ -35,16 +35,16 @@ def MK_Reduction(M,K,bc,ini_to_new):
             active_dof.remove(temp_node_index*3)
             active_dof.remove(temp_node_index*3 + 1)
             active_dof.remove(temp_node_index*3 + 2)
-            inact_dof.append(temp_node_index*3) #Axial
-            inact_dof.append(temp_node_index*3 + 1) #Transverse
+            inact_dof.append(temp_node_index*3) #x
+            inact_dof.append(temp_node_index*3 + 1) #y
             inact_dof.append(temp_node_index*3 + 2) #Rotation
             inact_num += 3
             
         elif list(bc.values())[i] == 2:
             active_dof.remove(temp_node_index*3)
             active_dof.remove(temp_node_index*3 + 1)
-            inact_dof.append(temp_node_index*3) #Axial
-            inact_dof.append(temp_node_index*3 + 1)#Transverse
+            inact_dof.append(temp_node_index*3) #x
+            inact_dof.append(temp_node_index*3 + 1)#y
             inact_num += 2
 
     for i in range(len(active_dof)):
