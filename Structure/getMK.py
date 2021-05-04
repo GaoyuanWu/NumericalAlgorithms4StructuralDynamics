@@ -23,6 +23,9 @@ import numpy as np
 # {k} -> Vector for stiffness of each floor; 1-D array; top to bottom
 # {m} -> Vector for lumped-mass of each floor; 1-D array
 '''
+def getMK_SDOF(k,m):
+    return np.array([k]),np.array([m])
+
 def getMK_lumpedmass(n,k,m):
     M = np.diag(m)# Mass Matrix
     K = np.zeros([n,n])   # Initialized Stiffness Matrix

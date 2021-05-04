@@ -9,6 +9,8 @@ import numpy as np
 import SSPRK3 as SSPRK3
 import matplotlib.pyplot as plt
 import pandas as pd
+import Wilson as Wilson
+import Newmark as Newmark
 
 #Initial structure
 test_nodecoord = np.array([[0,0],[100*np.cos(np.pi/4),100*np.cos(np.pi/4)],[100*np.cos(np.pi/4)+100,100*np.cos(np.pi/4)]])
@@ -36,22 +38,21 @@ K,M = getMK.getMK_FEM(new_nodecoord,new_B, ele_m, ele_E, ele_A, ele_I)
 #print("mass matrix: ", M)     
 #print("old to new ", itn)  
 
+#Propotional Damping
+alpha = 0
+beta = 0.0001
+C = alpha * M + beta * K
+
 
 #Transformed Matrix
 M_bc,K_bc,inact_num,glb_to_bc = getBC.MK_Reduction(M, K, bc, itn)
+C_bc = alpha * M_bc + beta * K_bc
 act_num = K_bc.shape[0] - inact_num
 K_a = K_bc[:act_num,:act_num]
 M_a = M_bc[:act_num,:act_num]
 C_a = C_bc[:act_num,:act_num]
 u_0 = np.zeros(act_num)
 v_0 = np.zeros(act_num)    
-
-
-#Propotional Damping
-alpha = 0
-beta = 0
-C = alpha * M + beta * K
-C_bc = alpha * M_bc + beta * K_bc
 
 
 #External loading
@@ -88,7 +89,7 @@ def test_f2(x):
 #dt = 0.005
 #Read xlsx
 
-GM_tab = pd.read_excel('GroundMotion.xlsx')
+GM_tab = pd.read_excel('GM.xlsx')
 GM_data = np.array(GM_tab.values)
 dt_ft = 0.005
 test_f3 = - M_a @ (np.ones((act_num,1))@(GM_data.T))
@@ -100,60 +101,112 @@ test_f3 = - M_a @ (np.ones((act_num,1))@(GM_data.T))
 
 t_a = 0
 h = 0.005
-N = 10000
+N = 1000
 
 #Test 1:
 U_test1 = SSPRK3.SSP_RK3(K_a,M_a,C_a,test_f1,u_0,v_0,t_a,N,h)
-u1 = U_test1[0,:]
-u2 = U_test1[1,:]
-u3 = U_test1[2,:]
-
-#fig, ax = plt.subplots()
-#plt.ylabel("u1")
-#plt.plot(np.arange(0,5.005,0.005),u1,color = 'b')
-
-#fig, ax = plt.subplots()
-#plt.ylabel("u2")
-#plt.plot(np.arange(0,5.005,0.005),u2,color = 'b')
-
-#fig, ax = plt.subplots()
-#plt.ylabel("u3")
-#plt.plot(np.arange(0,5.005,0.005),u3,color = 'b')
+u1_ssp1 = U_test1[0,:]
+u2_ssp1 = U_test1[1,:]
+u3_ssp1 = U_test1[2,:]
 
 #Test 2:
 U_test2 = SSPRK3.SSP_RK3(K_a,M_a,C_a,test_f2,u_0,v_0,t_a,N,h)
-u1 = U_test2[0,:]
-u2 = U_test2[1,:]
-u3 = U_test2[2,:]
-
-#fig, ax = plt.subplots()
-#plt.ylabel("u1")
-#plt.plot(np.arange(0,5.005,0.005),u1,color = 'b')
-
-#fig, ax = plt.subplots()
-#plt.ylabel("u2")
-#plt.plot(np.arange(0,5.005,0.005),u2,color = 'b')
-
-#fig, ax = plt.subplots()
-#plt.ylabel("u3")
-#plt.plot(np.arange(0,5.005,0.005),u3,color = 'b')
+u1_ssp2 = U_test2[0,:]
+u2_ssp2 = U_test2[1,:]
+u3_ssp2 = U_test2[2,:]
 
 #Test 3:
 U_test3 = SSPRK3.SSP_RK3(K_a,M_a,C_a,test_f3,u_0,v_0,t_a,N,h,dt_ft)
-u1 = U_test3[0,:]
-u2 = U_test3[1,:]
-u3 = U_test3[2,:]
+u1_ssp3 = U_test3[0,:]
+u2_ssp3 = U_test3[1,:]
+u3_ssp3 = U_test3[2,:]
+
+# Algorithm 2: Wilson-theta #
+theta = 1.38
+#Test 1:
+u,v,a = Wilson.Wilson_theta(theta,K_a,M_a,C_a,test_f1,u_0,v_0,t_a,N,h)
+u1_w1 = u[0,:]
+u2_w1 = u[1,:]
+u3_w1 = u[2,:]
+
+#Test 2:
+u,v,a = Wilson.Wilson_theta(theta,K_a,M_a,C_a,test_f2,u_0,v_0,t_a,N,h)
+u1_w2 = u[0,:]
+u2_w2 = u[1,:]
+u3_w2 = u[2,:]
+
+#Test 3:
+u,v,a = Wilson.Wilson_theta(theta,K_a,M_a,C_a,test_f3,u_0,v_0,t_a,N,h,dt_ft)
+u1_w3 = u[0,:]
+u2_w3 = u[1,:]
+u3_w3 = u[2,:]
+
+# Algorithm 3: Newmark-beta #
+delta = 0.5
+beta = 0.25
+#Test 1:
+u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f1,u_0,v_0,t_a,N,h)
+u1_nm1 = u[0,:]
+u2_nm1 = u[1,:]
+u3_nm1 = u[2,:]
+
+#Test 2:
+u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f2,u_0,v_0,t_a,N,h)
+u1_nm2 = u[0,:]
+u2_nm2 = u[1,:]
+u3_nm2 = u[2,:]
+
+#Test 3:
+u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f3,u_0,v_0,t_a,N,h,dt_ft)
+u1_nm3 = u[0,:]
+u2_nm3 = u[1,:]
+u3_nm3 = u[2,:]
+
+# Algorithm 4: HHT-alpha #
+alpha = -0.1
+delta = 0.5 * (1-2*alpha)
+beta = 0.25 * (1-alpha)**2
+#Test 1:
+u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f1,u_0,v_0,t_a,N,h)
+u1_hht1 = u[0,:]
+u2_hht1 = u[1,:]
+u3_hht1 = u[2,:]
+
+#Test 2:
+u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f2,u_0,v_0,t_a,N,h)
+u1_hht2 = u[0,:]
+u2_hht2 = u[1,:]
+u3_hht2 = u[2,:]
+
+#Test 3:
+u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f3,u_0,v_0,t_a,N,h,dt_ft)
+u1_hht3 = u[0,:]
+u2_hht3 = u[1,:]
+u3_hht3 = u[2,:]
+
+
+##Comparison for different algorithms, test1
 
 fig, ax = plt.subplots()
 plt.ylabel("u1")
-plt.plot(np.arange(0,50.005,0.005),u1,color = 'b')
+plt.plot(np.arange(0,5.005,0.005),u1_w2,color = 'b',label = "Wilson")
+plt.plot(np.arange(0,5.005,0.005),u1_ssp2,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u1_nm2,color = 'y',label = "Newmark")
+plt.plot(np.arange(0,5.005,0.005),u1_hht2,color = 'c',label = "HHT")
+plt.legend()
 
 fig, ax = plt.subplots()
 plt.ylabel("u2")
-plt.plot(np.arange(0,50.005,0.005),u2,color = 'b')
+#plt.plot(np.arange(0,5.005,0.005),u2_w3,color = 'b',label = "Wilson")
+#plt.plot(np.arange(0,5.005,0.005),u2_ssp3,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u2_nm1,color = 'y',label = "Newmark")
+#plt.plot(np.arange(0,5.005,0.005),u2_hht1,color = 'c',label = "HHT")
+plt.legend()
 
 fig, ax = plt.subplots()
 plt.ylabel("u3")
-plt.plot(np.arange(0,50.005,0.005),u3,color = 'b')
-
-
+#plt.plot(np.arange(0,5.005,0.005),u3_w3,color = 'b',label = "Wilson")
+#plt.plot(np.arange(0,5.005,0.005),u3_ssp3,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u3_nm1,color = 'y',label = "Newmark")
+#plt.plot(np.arange(0,5.005,0.005),u3_hht1,color = 'c',label = "HHT")
+plt.legend()

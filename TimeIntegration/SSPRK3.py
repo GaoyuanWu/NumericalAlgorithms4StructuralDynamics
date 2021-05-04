@@ -1,8 +1,6 @@
 ###################################################### 
-# This file helps you to apply boundary conditions,  # 
-#  transfering initial M & K into new matrices;      #               
-# which can then be used in time integration         #                                    
-#                                                    #
+# This file includes SSP-RK3 algorithms for         #                                    
+# structural dynamics                                #
 #                                                    #
 # Created by Gaoyuan WU, Phd Student @ Princeton     # 
 ######################################################
