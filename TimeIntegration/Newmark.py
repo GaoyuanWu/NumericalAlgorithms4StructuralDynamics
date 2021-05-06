@@ -6,8 +6,6 @@
 ######################################################
 
 import numpy as np 
-from scipy.linalg import ldl
-from scipy.linalg import solve_triangular
 
 '''
 Newmark-beta Method for Structural Dynamics.
@@ -38,10 +36,6 @@ Each element is a time-dependent function or values at discrete time steps (eart
 '''
 def Newmark_beta(delta,beta,K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
     
-    if dt_ft != 0:
-        if(h%dt_ft != 0):
-            print("Please choose another time step h that is in accordance with time step in ground motion records")
-        
     n_dof = K_a.shape[0] # Dimension
     
     #Storing array
@@ -90,11 +84,14 @@ def Newmark_beta(delta,beta,K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
     else:
         for i in range(N):
             t_i = i * h
+            f_left_index = int((t_i+h)/dt_ft)
+            f_left_dis = (t_i+h)%dt_ft
+            f_tpdt = f_t[:,f_left_index] + (f_t[:,f_left_index + 1]-f_t[:,f_left_index]) * f_left_dis/dt_ft
             temp_1 = a0 * u_t[:,i] + a2 * v_t[:,i] + a3 * a_t[:,i]
             temp_M = M_a @ temp_1
             temp_2 = a1 * u_t[:,i] + a4 * v_t[:,i] + a5 * a_t[:,i]
             temp_C = C_a @ temp_2
-            F_ef_temp = f_t[:,int(t_i/dt_ft)+1] + temp_M + temp_C
+            F_ef_temp = f_tpdt + temp_M + temp_C
             
             #Solve for u_(t+theta*h)
             u_t[:,i+1] = np.linalg.solve(K_ef,F_ef_temp)
@@ -102,7 +99,6 @@ def Newmark_beta(delta,beta,K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
             #Get velocity and acceleration at t + h
             a_t[:,i+1] = a0 * (u_t[:,i+1] - u_t[:,i]) - a2 * v_t[:,i] - a3 * a_t[:,i]
             v_t[:,i+1] = v_t[:,i] + a6 * a_t[:,i] + a7 * a_t[:,i+1]
-        
     return u_t,v_t,a_t
     
     

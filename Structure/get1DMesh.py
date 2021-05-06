@@ -46,7 +46,7 @@ def get1DMesh(Ini_nodecoord,B,h):
     New_ele_index = 0
     Ini_node_index = [] # List storing old node already in new node list
     Ini_to_New = np.zeros((Ini_nodeNum)).astype(int) # Representing relationship between initial node-index and new node-index
-    
+    Ini_to_New_ele = np.zeros((New_eleNum)).astype(int) # Representing relationship between new element-index and old element-index
     # Creating new B and new Node_coord
     for i in range(Ini_eleNum):
         temp_node_index_new = np.zeros(int(ele_subNum[i]) + 1)
@@ -72,12 +72,14 @@ def get1DMesh(Ini_nodecoord,B,h):
                     temp_node_index_new[j] = New_node_index
                     New_B[New_ele_index,0] = temp_node_index_new[j-1]
                     New_B[New_ele_index,1] = temp_node_index_new[j] # New_B
+                    Ini_to_New_ele[New_ele_index] = i 
                     New_ele_index += 1
                     New_node_index += 1
                 else:
                     temp_node_index_new[j] = Ini_to_New[B[i,1]-1]
                     New_B[New_ele_index,0] = temp_node_index_new[j-1]
                     New_B[New_ele_index,1] = temp_node_index_new[j]
+                    Ini_to_New_ele[New_ele_index] = i 
                     New_ele_index += 1
             else:
                 (New_nodecoord[New_node_index])[0] = Ini_nodecoord[B[i,0]-1,0] + Ini_ele_u[i]/ele_subNum[i] * j  # x
@@ -85,9 +87,10 @@ def get1DMesh(Ini_nodecoord,B,h):
                 temp_node_index_new[j] = New_node_index
                 New_B[New_ele_index,0] = temp_node_index_new[j-1]
                 New_B[New_ele_index,1] = temp_node_index_new[j]
+                Ini_to_New_ele[New_ele_index] = i 
                 New_ele_index += 1
                 New_node_index += 1
-    return New_nodecoord,New_B + 1, Ini_to_New #+1: Back to physical index..starting from 1
+    return New_nodecoord,New_B + 1, Ini_to_New, Ini_to_New_ele #+1: Back to physical index..starting from 1
        
             
 

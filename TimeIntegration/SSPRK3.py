@@ -32,12 +32,7 @@ Each element is a time-dependent function or values at discrete time steps (eart
 # t_a,N start time of time integration,steps
 # dt_ft time step within discrete ft
 '''
-def SSP_RK3(K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
-    
-    if dt_ft != 0:
-        if(h%dt_ft != 0):
-            print("Please choose anothe time step h that is in accordance with time step in ground motion records")
-        
+def SSP_RK3(K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):  
     
     U_0 = np.hstack((u_0.T,v_0.T)) #Initial Value
     M_inv = np.linalg.inv(M_a) #Inverse of M_a
@@ -74,8 +69,17 @@ def SSP_RK3(K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
     else:
         for i in range(N):
             t_i = i * h
-            F_t_i = np.hstack((np.zeros((n_dof)).T,(M_inv@f_t[:,int(t_i/dt_ft)]).T))
-            F_t_ip1 = np.hstack((np.zeros((n_dof)).T,(M_inv@f_t[:,int(t_i/dt_ft) + 1]).T))
+            f_left_index_i = int(t_i/dt_ft)
+            f_left_dis_i = (t_i)%dt_ft
+            f_t_i = f_t[:,f_left_index_i] + (f_t[:,f_left_index_i + 1]-f_t[:,f_left_index_i]) * f_left_dis_i/dt_ft
+            
+            f_left_index_ip1 = int((t_i+h)/dt_ft)
+            f_left_dis_ip1 = (t_i+h)%dt_ft
+            f_t_ip1 = f_t[:,f_left_index_ip1] + (f_t[:,f_left_index_ip1 + 1]-f_t[:,f_left_index_ip1]) * f_left_dis_ip1/dt_ft
+            
+            
+            F_t_i = np.hstack((np.zeros((n_dof)).T,(M_inv@f_t_i).T))
+            F_t_ip1 = np.hstack((np.zeros((n_dof)).T,(M_inv@f_t_ip1).T))
             
             #t_i + 0.5 h, just take the mid point of the record
             f_t_iph = 0.5 * (f_t[:,int(t_i/dt_ft)] + f_t[:,int(t_i/dt_ft) + 1])
@@ -88,7 +92,6 @@ def SSP_RK3(K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
             U2 = 3/4 * U_i + 1/4 * (U1 + h * (A@U1 + F_t_ip1))
             #Final Stage
             U_t[:,i+1] = 1/3 * U_i + 2/3 * (U2 + h * (A@U2 + F_t_iph))
-        
     return U_t
     
     

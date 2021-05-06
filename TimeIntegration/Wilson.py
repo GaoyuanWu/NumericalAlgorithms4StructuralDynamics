@@ -50,11 +50,7 @@ Each element is a time-dependent function or values at discrete time steps (eart
 # theta: coefficient in the method
 '''
 def Wilson_theta(theta,K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
-    
-    if dt_ft != 0:
-        if(h%dt_ft != 0):
-            print("Please choose another time step h that is in accordance with time step in ground motion records")
-        
+     
     n_dof = K_a.shape[0] # Dimension
     
     #Storing array
@@ -70,12 +66,8 @@ def Wilson_theta(theta,K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
         b = f_t(0) - C_a@v_0 - K_a@u_0
     else:
         b = f_t[:,0] - C_a@v_0 - K_a@u_0
-        
-    L_M,D_M,perm_M = ldl(M_a,lower = 0) #LDL decomposition
-    
-    y1 = solve_triangular(L_M,b)
-    y2 = y1/np.diag(D_M)
-    a_t[:,0] = solve_triangular(L_M.T,y2,lower = True)
+
+    a_t[:,0] = np.linalg.solve(M_a,b)
     
     
     #Start of Wilson-theta
@@ -100,11 +92,8 @@ def Wilson_theta(theta,K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
         for i in range(N):
             t_i = i * h
             F_ef_temp = f_t(t_i) + theta * (f_t(t_i + h) - f_t(t_i)) + M_a @ (a0 * u_t[:,i] + a2 * v_t[:,i] + 2 * a_t[:,i]) + C_a @ (a1 * u_t[:,i] + 2 * v_t[:,i] + a3 * a_t[:,i])
-            
-            #Solve for u_(t+theta*h)
-            y1 = solve_triangular(L,F_ef_temp)
-            y2 = y1/np.diag(D)
-            u_temp = solve_triangular(L.T,y2,lower = True)
+
+            u_temp = np.linalg.solve(K_ef,F_ef_temp)
             
             #Get displacement, velocity and acceleration at t + h
             a_t[:,i+1] = a4 * (u_temp - u_t[:,i]) + a5 * v_t[:,i] + a6 * a_t[:,i]
@@ -115,20 +104,23 @@ def Wilson_theta(theta,K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
     else:
         for i in range(N):
             t_i = i * h
-            ft_temp = f_t[:,int(t_i/dt_ft)]
-            ftp1_temp = f_t[:,int(t_i/dt_ft) + 1]
+            f_left_index_i = int(t_i/dt_ft)
+            f_left_dis_i = (t_i)%dt_ft
+            ft_temp = f_t[:,f_left_index_i] + (f_t[:,f_left_index_i + 1]-f_t[:,f_left_index_i]) * f_left_dis_i/dt_ft
+            
+            f_left_index_ip1 = int((t_i+h)/dt_ft)
+            f_left_dis_ip1 = (t_i+h)%dt_ft
+            ftp1_temp = f_t[:,f_left_index_ip1] + (f_t[:,f_left_index_ip1 + 1]-f_t[:,f_left_index_ip1]) * f_left_dis_ip1/dt_ft
+            
             F_ef_temp = ft_temp + theta * (ftp1_temp - ft_temp) + M_a @ (a0 * u_t[:,i] + a2 * v_t[:,i] + 2 * a_t[:,i]) + C_a @ (a1 * u_t[:,i] + 2 * v_t[:,i] + a3 * a_t[:,i])
             
             #Solve for u_(t+theta*h)
-            y1 = solve_triangular(L,F_ef_temp)
-            y2 = y1/np.diag(D)
-            u_temp = solve_triangular(L.T,y2,lower = True)
+            u_temp = np.linalg.solve(K_ef,F_ef_temp)
             
             #Get displacement, velocity and acceleration at t + h
             a_t[:,i+1] = a4 * (u_temp - u_t[:,i]) + a5 * v_t[:,i] + a6 * a_t[:,i]
             v_t[:,i+1] = v_t[:,i] + a7 * (a_t[:,i+1] + a_t[:,i])
             u_t[:,i+1] = u_t[:,i] + h * v_t[:,i] + a8 * (a_t[:,i+1] + 2*a_t[:,i])
-        
     return u_t,v_t,a_t
     
     

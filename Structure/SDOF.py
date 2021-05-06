@@ -13,8 +13,7 @@ This is a study of different algorithms on SDOF system.
 Algorithms:
     1. SSP-RK3
     2. Wilson-theta (theta=1.4,1.6)
-    3. Newmark-beta (delta=0.5,beta=0.25; delta=0.5,beta=0.2)
-    4. HHT
+    3. Newmark-beta (delta=0.5,beta=0.25; delta=0.5,beta=0.2; delta= 0.6,beta=0.2)
 
 Accuracy & stability analysis is conducted.
 

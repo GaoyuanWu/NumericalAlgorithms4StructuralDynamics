@@ -24,7 +24,7 @@ getPlot.getPlot(test_nodecoord,test_B,True,True,10)
 
 # 1D MESH
 h = 100 #mesh size
-new_nodecoord,new_B,itn = get1DMesh.get1DMesh(test_nodecoord, test_B, h)
+new_nodecoord,new_B,itn,itn_ele = get1DMesh.get1DMesh(test_nodecoord, test_B, h)
 getPlot.getPlot(new_nodecoord,new_B,True,True,10)     
         
 # Global Matrix
@@ -162,51 +162,28 @@ u1_nm3 = u[0,:]
 u2_nm3 = u[1,:]
 u3_nm3 = u[2,:]
 
-# Algorithm 4: HHT-alpha #
-alpha = -0.1
-delta = 0.5 * (1-2*alpha)
-beta = 0.25 * (1-alpha)**2
-#Test 1:
-u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f1,u_0,v_0,t_a,N,h)
-u1_hht1 = u[0,:]
-u2_hht1 = u[1,:]
-u3_hht1 = u[2,:]
 
-#Test 2:
-u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f2,u_0,v_0,t_a,N,h)
-u1_hht2 = u[0,:]
-u2_hht2 = u[1,:]
-u3_hht2 = u[2,:]
-
-#Test 3:
-u,v,a = Newmark.Newmark_beta(delta,beta,K_a,M_a,C_a,test_f3,u_0,v_0,t_a,N,h,dt_ft)
-u1_hht3 = u[0,:]
-u2_hht3 = u[1,:]
-u3_hht3 = u[2,:]
 
 
 ##Comparison for different algorithms, test1
 
 fig, ax = plt.subplots()
 plt.ylabel("u1")
-plt.plot(np.arange(0,5.005,0.005),u1_w2,color = 'b',label = "Wilson")
-plt.plot(np.arange(0,5.005,0.005),u1_ssp2,color = 'r',label = "SSP-RK3")
-plt.plot(np.arange(0,5.005,0.005),u1_nm2,color = 'y',label = "Newmark")
-plt.plot(np.arange(0,5.005,0.005),u1_hht2,color = 'c',label = "HHT")
+plt.plot(np.arange(0,5.005,0.005),u1_w3,color = 'b',label = "Wilson")
+plt.plot(np.arange(0,5.005,0.005),u1_ssp3,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u1_nm3,color = 'y',label = "Newmark")
 plt.legend()
 
 fig, ax = plt.subplots()
 plt.ylabel("u2")
-#plt.plot(np.arange(0,5.005,0.005),u2_w3,color = 'b',label = "Wilson")
-#plt.plot(np.arange(0,5.005,0.005),u2_ssp3,color = 'r',label = "SSP-RK3")
-plt.plot(np.arange(0,5.005,0.005),u2_nm1,color = 'y',label = "Newmark")
-#plt.plot(np.arange(0,5.005,0.005),u2_hht1,color = 'c',label = "HHT")
+plt.plot(np.arange(0,5.005,0.005),u2_w3,color = 'b',label = "Wilson")
+plt.plot(np.arange(0,5.005,0.005),u2_ssp3,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u2_nm3,color = 'y',label = "Newmark")
 plt.legend()
 
 fig, ax = plt.subplots()
 plt.ylabel("u3")
-#plt.plot(np.arange(0,5.005,0.005),u3_w3,color = 'b',label = "Wilson")
-#plt.plot(np.arange(0,5.005,0.005),u3_ssp3,color = 'r',label = "SSP-RK3")
-plt.plot(np.arange(0,5.005,0.005),u3_nm1,color = 'y',label = "Newmark")
-#plt.plot(np.arange(0,5.005,0.005),u3_hht1,color = 'c',label = "HHT")
+plt.plot(np.arange(0,5.005,0.005),u3_w3,color = 'b',label = "Wilson")
+plt.plot(np.arange(0,5.005,0.005),u3_ssp3,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u3_nm3,color = 'y',label = "Newmark")
 plt.legend()
