@@ -44,7 +44,7 @@ Import `getBC` as `getBC`.
 `bc` is a dictionary storing initial node index and the node's constraints.
 key:value -> key is initial node index in python, value is 1 for fixed BC, 2 for pinned and 3 for roller support.
 Example:
-```json
+```js
 #Node 1-4 are fixed
 bc = {0:1,1:1,2:1,3:1} 
 ```
@@ -59,7 +59,7 @@ bc = {0:1,1:1,2:1,3:1}
 ### Time integration
 Before implementing the time integration. One needs to define the function for external loading.
 For functional input, below is an example:
-```json
+```js
 #Test External loading 1: acting on node 9 (8 in py), postive x direction
 def f1(x):
     return 1000
