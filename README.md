@@ -5,10 +5,10 @@
 This solver is cabaple of solving structural dynamics problem for 2D frame system. The input can be continuous function or discrete data points such as ground motion records.
 For spatial discretizatioin, lumped-mass method and finite-element-method can be used.
 For time integration, there are 4 methods to choose from:
-1. Strong-stability-preserving Runge-Kutta(3 stage, $3^{rd}$ order)
-2. Wilson-$\theta$ method
-3. Newmark-$\beta$ method
-4. Bathe method (first stage at t + 0.5$\Delta t$)
+1. Strong-stability-preserving Runge-Kutta(3 stage, 3^rd order)
+2. Wilson-theta method
+3. Newmark-beta method
+4. Bathe method (first stage at t + 0.5h)
 
 
 ## Usage
@@ -92,7 +92,7 @@ def test_gm(M_a,act_num = act_num,GM_data = GM_data):
 ```
 
 Afterwards, we are ready to implement the the time integration. Import corresponding `.py` file from `TimeIntegration` folder.
-Take Newmark-$\beta$ method as an example:
+Take Newmark-beta method as an example:
 
 ```json
 # u_0 and v_0 are 1D arrays for inital conditions
