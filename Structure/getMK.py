@@ -20,7 +20,7 @@ import numpy as np
 
 #Inputs:
 # n -> Number of stories
-# {k} -> Vector for stiffness of each floor; 1-D array; top to bottom
+# {k} -> Vector for stiffness of each floor; 1-D array; top floor to bottom floor
 # {m} -> Vector for lumped-mass of each floor; 1-D array
 '''
 def getMK_SDOF(k,m):
@@ -64,7 +64,7 @@ def getMK_lumpedmass(n,k,m):
 
 #Inputs:
 # joint_coord -> Global coordinates of joints; 2-D array; nj(number of joints) x 2
-# B -> Connectivity matrix between joints & elements; 2-D array; ne(number of elements) x 2; Column 1 for local node 2
+# B -> Connectivity matrix between joints & elements; 2-D array; ne(number of elements) x 2
 # ele_m -> mass per unit length of each element;1-D array
 # ele_E -> Young's modulus; 1-D array
 # ele_A -> Area of the element; 1-D array

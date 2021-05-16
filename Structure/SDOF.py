@@ -7,15 +7,14 @@ import SSPRK3 as SSPRK3
 import matplotlib.pyplot as plt
 import Wilson as Wilson
 import Newmark as Newmark
-
+import Bathe as Bathe
+#%%
 '''
 This is a study of different algorithms on SDOF system.
 Algorithms:
     1. SSP-RK3
     2. Wilson-theta (theta=1.4,1.6)
     3. Newmark-beta (delta=0.5,beta=0.25; delta=0.5,beta=0.2; delta= 0.6,beta=0.2)
-
-Accuracy & stability analysis is conducted.
 
 External loading:
     1.Sin wave (different frequency chosen to show resonance)
@@ -56,7 +55,7 @@ def test_f1(x):
         pos = f_list[i,1]
         vec[pos] = f_list[i,0](w,x)
     return vec 
-#
+#Exact solution
 def ex_sdof_sin(w,t,u0,v0,k,m,c,p0):
     u_st = p0/k
     w_n = np.sqrt(k/m)
@@ -80,18 +79,19 @@ v0 = np.zeros(n)
 
 t_a = 0
 t_b = 5 
-h_list = [0.5,0.01,0.005]
-N_list = [10,500,1000]
+h_list = [0.2,0.1,0.005]
+N_list = [25,50,1000]
 
 w_list = [5.5,11.5]
 
-method_list = [SSPRK3.SSP_RK3,Wilson.Wilson_theta,Wilson.Wilson_theta,Newmark.Newmark_beta,Newmark.Newmark_beta,Newmark.Newmark_beta]
+method_list = [SSPRK3.SSP_RK3,Wilson.Wilson_theta,Wilson.Wilson_theta,Newmark.Newmark_beta,Newmark.Newmark_beta,Newmark.Newmark_beta,Bathe.Bathe]
 
-coef = np.array([[1.4,0],[1.6,0],[0.5,0.25],[0.5,0.2],[0.6,0.2]]) #Coefficients for different algorithms
+coef = np.array([[1.4,0],[2,0],[0.5,0.25],[0.5,1/6],[11/20,3/10]]) #Coefficients for different algorithms
 
-color_list = ['b','brown','r','y','c','m']
-label_list = ['SSP-RK3',r'Wilson, $\theta = 1.4$',r'Wilson, $ \theta = 1.6$',r'Newmark, $\delta$ = 0.5, $\beta$ = 0.25',r'Newmark, $\delta$ = 0.5, $\beta$ = 0.2',r'Newmark, $\delta$ = 0.6, $\beta$ = 0.2']
+color_list = ['b','brown','r','y','c','m','k','peachpuff']
+label_list = ['SSP-RK3',r'Wilson, $\theta = 1.4$',r'Wilson, $ \theta = 2$',r'Newmark, $\delta$ = 0.5, $\beta$ = 0.25',r'Newmark, $\delta$ = 0.5, $\beta$ = $\frac{1}{6}$',r'Newmark, $\delta$ = $\frac{11}{20}$, $\beta$ = $ \frac{3}{10}$ ','Bathe']
 
+#%%
 '''
 Plots of time history for displacement for different h & frequency.
 Showing SSP-RK3 is not unconditionally stable.
@@ -107,24 +107,29 @@ for i in range(len(h_list)):
         p0 = 10**5
         f = test_f1
         fig,ax = plt.subplots()
-        ax.set_title(r'$f(t) = 1000cos(wt), w = {}$, h = {}'.format(w,h))
-        ax.set_xlabel('t(s)')
-        ax.set_ylabel('Displacement (m)')
-        plt.plot(np.linspace(t_a,t_b,2000),ex_sdof_sin(w,np.linspace(t_a,t_b,2000),u0,v0,k,m,c,p0),linewidth = 2,color = "k",label = "exact")
+        ax.set_title(r'$f(t) = 1000cos(\omega t), \omega = {}$, h = {}'.format(w,h),fontsize = 20)
+        ax.set_xlabel('t(s)',fontsize = 20)
+        ax.set_ylabel('Displacement (m)',fontsize = 20)
+        plt.xticks(fontsize = 20)
+        plt.yticks(fontsize = 20)
+        plt.plot(np.linspace(t_a,t_b,2000),ex_sdof_sin(w,np.linspace(t_a,t_b,2000),u0,v0,k,m,c,p0),marker = 'x',label = "exact")
         for j in range(len(method_list)):
             if j == 0:
                 u_temp,v_temp = method_list[j](K,M,C,f,u0,v0,t_a,N,h)
             elif j <= 2:
                 theta = coef[j-1,0]
                 u_temp,v_temp,a_temp = method_list[j](theta,K,M,C,f,u0,v0,t_a,N,h)
-            else:
+            elif j<6:
                 delta = coef[j-1,0]
                 beta = coef[j-1,1]
                 u_temp,v_temp,a_temp = method_list[j](delta,beta,K,M,C,f,u0,v0,t_a,N,h)
+            else:
+                u_temp,v_temp,a_temp = method_list[j](K,M,C,f,u0,v0,t_a,N,h)
                 
             plt.plot(np.linspace(t_a,t_b,N+1),u_temp.T[:],color = color_list[j],label = label_list[j])
-            plt.legend()
-
+            plt.legend(fontsize = 15)
+            
+#%%
 '''
 Do a convergence test.
 w = 5.5, p0 = 1000
@@ -139,8 +144,8 @@ t_a = 0
 t_b = 5 
 N = np.arange(100,10000,2000)
 N_num = len(N)
-method_list = [SSPRK3.SSP_RK3,Wilson.Wilson_theta,Wilson.Wilson_theta,Newmark.Newmark_beta,Newmark.Newmark_beta,Newmark.Newmark_beta]
-coef = np.array([[1.4,0],[1.6,0],[0.5,0.25],[0.5,0.2],[0.6,0.2]]) #Coefficients for different algorithms
+method_list = [SSPRK3.SSP_RK3,Wilson.Wilson_theta,Wilson.Wilson_theta,Newmark.Newmark_beta,Newmark.Newmark_beta,Newmark.Newmark_beta,Bathe.Bathe]
+coef = np.array([[1.4,0],[1.6,0],[0.5,0.25],[0.5,1/6],[11/20,3/10]]) #Coefficients for different algorithms
 algo_err = np.zeros((len(method_list),N_num)) #Storing errors
 
 p0 = 10**5
@@ -159,29 +164,34 @@ for i in range (N_num):
             theta = coef[j-1,0]
             u_temp = method_list[j](theta,K,M,C,f,u0,v0,t_a,N_temp,h_temp)[0]
             numerical = u_temp[0,N_temp]
-        else:
+        elif j<6:
             delta = coef[j-1,0]
             beta = coef[j-1,1]
             u_temp = method_list[j](delta,beta,K,M,C,f,u0,v0,t_a,N_temp,h_temp)[0]
+            numerical = u_temp[0,N_temp]
+        else:
+            u_temp = method_list[j](K,M,C,f,u0,v0,t_a,N_temp,h_temp)[0]
             numerical = u_temp[0,N_temp]
         algo_err[j,i] = np.abs(exa-numerical)
         
 # Plot
 
 fig,ax = plt.subplots(figsize=(10,14))
-ax.set_title(r'Convergence test for SDOF system, $w = {}$'.format(w))
-ax.set_xlabel('h,Grid Spacing')
-ax.set_ylabel(r'Error for $u(5)$')
+ax.set_title(r'Convergence test for SDOF system, $\omega = {}$'.format(w),fontsize = 20)
+ax.set_xlabel('h,Grid Spacing',fontsize = 20)
+ax.set_ylabel(r'Error for $u(5)$',fontsize = 20)
+plt.xticks(fontsize = 20)
+plt.yticks(fontsize = 20)
 for i in range (len(method_list)):
     plt.plot((t_b - t_a)/N,algo_err[i,:],color = color_list[i],label = label_list[i])
 plt.plot((t_b - t_a)/N,((t_b - t_a)/N*4)**2,linestyle = "dashed")
 plt.plot((t_b - t_a)/N,((t_b - t_a)/N*5)**3 ,linestyle = "dashed")
-ax.text(0.05,(0.05*4)**2,str( r'$ h^2$'))
-ax.text(0.05,(0.05*4)**3,str( r'$ h^3$'))
+ax.text(0.05,(0.05*4)**2,str( r'$ h^2$'),fontsize = 20)
+ax.text(0.05,(0.05*4)**3,str( r'$ h^3$'),fontsize = 20)
 ax.set_yscale('log')
 ax.set_xscale('log')
-plt.legend()   
-
+plt.legend(fontsize = 15)   
+#%%
 
 #####################################
 #Test 2
@@ -226,9 +236,10 @@ method_list = [SSPRK3.SSP_RK3,Wilson.Wilson_theta,Wilson.Wilson_theta,Newmark.Ne
 
 coef = np.array([[1.4,0],[1.6,0],[0.5,0.25],[0.5,0.2],[0.6,0.2]]) #Coefficients for different algorithms
 
-color_list = ['b','brown','r','y','c','m']
+color_list = ['b','brown','r','y','c','m','pink']
 label_list = ['SSP-RK3',r'Wilson, $\theta = 1.4$',r'Wilson, $ \theta = 1.6$',r'Newmark, $\delta$ = 0.5, $\beta$ = 0.25',r'Newmark, $\delta$ = 0.5, $\beta$ = 0.2',r'Newmark, $\delta$ = 0.6, $\beta$ = 0.2']
 
+#%%
 '''
 Plots of time history for displacement for different damping ratio.
 Showing SSP-RK3 is not unconditionally stable.
@@ -243,9 +254,11 @@ for i in range(len(h_list)):
         c_ratio = c_ratio_list[i_1]
         C = np.array([[c]])
         fig,ax = plt.subplots()
-        ax.set_title(r'$ Free vibration, \xi = {}, h = {} $'.format(c_ratio,h))
-        ax.set_xlabel('t(s)')
-        ax.set_ylabel('Displacement (m)')
+        ax.set_title(r'$ Free vibration, \xi = {}, h = {} $'.format(c_ratio,h),fontsize = 20)
+        ax.set_xlabel('t(s)',fontsize = 20)
+        ax.set_ylabel('Displacement (m)',fontsize = 20)
+        plt.xticks(fontsize = 20)
+        plt.yticks(fontsize = 20)
         plt.plot(np.linspace(t_a,t_b,2000),ex_sdof_free(np.linspace(t_a,t_b,2000),u0,v0,k,m,c_ratio),linewidth = 2,color = "k",label = "exact")
         for j in range(len(method_list)):
             if j == 0:
@@ -259,6 +272,6 @@ for i in range(len(h_list)):
                 u_temp,v_temp,a_temp = method_list[j](delta,beta,K,M,C,test_f2,u0,v0,t_a,N,h)
                 
             plt.plot(np.linspace(t_a,t_b,N+1),u_temp.T[:],color = color_list[j],label = label_list[j])
-            plt.legend()
+            plt.legend(fontsize = 20)
 
  

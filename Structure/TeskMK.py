@@ -11,35 +11,34 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import Wilson as Wilson
 import Newmark as Newmark
-
 #%%
 #Initial structure
-test_nodecoord = np.array([[0,0],[1,0]])
-test_B = np.array ([[1,2]])
+test_nodecoord = np.array([[0,0],[100*np.cos(np.pi/4),100*np.cos(np.pi/4)],[100*np.cos(np.pi/4)+100,100*np.cos(np.pi/4)]])
+test_B = np.array ([[1,2],[2,3]])
 
 #Fixed BC
-bc = {0:1} 
+bc = {0:1,2:1} 
 
 #Plot
-getPlot.getPlot(test_nodecoord,test_B,0,0,10)
-#%%
-# 1D MESH
-h = 0.2 #mesh size
-new_nodecoord,new_B,itn,itn_ele = get1DMesh.get1DMesh(test_nodecoord, test_B, h)
-getPlot.getPlot(new_nodecoord,new_B,0,0,10)     
+getPlot.getPlot(test_nodecoord,test_B,True,True,10)
 
-#%%      
+# 1D MESH
+h = 100 #mesh size
+new_nodecoord,new_B,itn,itn_ele = get1DMesh.get1DMesh(test_nodecoord, test_B, h)
+getPlot.getPlot(new_nodecoord,new_B,True,True,10)     
+        
 # Global Matrix
-ele_A = 1 * np.ones(new_B.shape[0])
-ele_m = 1 * np.ones(new_B.shape[0])
-ele_I = 1 * np.ones(new_B.shape[0])
-ele_E = 1 * np.ones(new_B.shape[0])
+ele_A = 6 * np.ones(new_B.shape[0])
+ele_m = 4.2 * np.ones(new_B.shape[0])
+ele_I = 100 * np.ones(new_B.shape[0])
+ele_E = 10**7 * np.ones(new_B.shape[0])
 
 K,M = getMK.getMK_FEM(new_nodecoord,new_B, ele_m, ele_E, ele_A, ele_I)
-#print("stiffness matrix: ", K)
-#print("mass matrix: ", M)     
-#print("old to new ", itn)  
+print("stiffness matrix: ", K)
+print("mass matrix: ", M)     
+print("old to new ", itn)  
 
+#%%
 #Propotional Damping
 alpha = 0
 beta = 0.0001
@@ -53,13 +52,14 @@ act_num = K_bc.shape[0] - inact_num
 K_a = K_bc[:act_num,:act_num]
 M_a = M_bc[:act_num,:act_num]
 C_a = C_bc[:act_num,:act_num]
+u_0 = np.zeros(act_num)
+v_0 = np.zeros(act_num)    
+print(K_a)
+print(M_a)
+
 w,v = np.linalg.eig(np.linalg.inv(M_a)@K_a)
 print(np.sqrt(w))
 #%%
-u_0 = np.zeros(act_num)
-v_0 = np.zeros(act_num)    
-
-
 #External loading
 #Test External loading 1: acting on ini_node 2, dir x
 def f_cons(x):
@@ -174,21 +174,21 @@ u3_nm3 = u[2,:]
 
 fig, ax = plt.subplots()
 plt.ylabel("u1")
-plt.plot(np.arange(0,5.005,0.005),u1_w3,color = 'b',label = "Wilson")
-plt.plot(np.arange(0,5.005,0.005),u1_ssp3,color = 'r',label = "SSP-RK3")
-plt.plot(np.arange(0,5.005,0.005),u1_nm3,color = 'y',label = "Newmark")
+plt.plot(np.arange(0,5.005,0.005),u1_w2,color = 'b',label = "Wilson")
+plt.plot(np.arange(0,5.005,0.005),u1_ssp2,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u1_nm2,color = 'y',label = "Newmark")
 plt.legend()
 
 fig, ax = plt.subplots()
 plt.ylabel("u2")
-plt.plot(np.arange(0,5.005,0.005),u2_w3,color = 'b',label = "Wilson")
-plt.plot(np.arange(0,5.005,0.005),u2_ssp3,color = 'r',label = "SSP-RK3")
-plt.plot(np.arange(0,5.005,0.005),u2_nm3,color = 'y',label = "Newmark")
+plt.plot(np.arange(0,5.005,0.005),u2_w2,color = 'b',label = "Wilson")
+plt.plot(np.arange(0,5.005,0.005),u2_ssp2,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u2_nm2,color = 'y',label = "Newmark")
 plt.legend()
 
 fig, ax = plt.subplots()
 plt.ylabel("u3")
-plt.plot(np.arange(0,5.005,0.005),u3_w3,color = 'b',label = "Wilson")
-plt.plot(np.arange(0,5.005,0.005),u3_ssp3,color = 'r',label = "SSP-RK3")
-plt.plot(np.arange(0,5.005,0.005),u3_nm3,color = 'y',label = "Newmark")
+plt.plot(np.arange(0,5.005,0.005),u3_w2,color = 'b',label = "Wilson")
+plt.plot(np.arange(0,5.005,0.005),u3_ssp2,color = 'r',label = "SSP-RK3")
+plt.plot(np.arange(0,5.005,0.005),u3_nm2,color = 'y',label = "Newmark")
 plt.legend()

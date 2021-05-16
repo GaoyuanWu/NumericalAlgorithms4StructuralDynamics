@@ -14,8 +14,6 @@ No need to convert 2nd order ODE to two 1st order ODE.
 No need of inversing matrix.
 
 delta,beta are parameters
-
-Similar to Wilson-theta method, but evaluate at t+h (not t + theta*h)
     
 #Inputs:
 # [K_a] -> Stiffness matrix for active dofs
@@ -99,6 +97,7 @@ def Newmark_beta(delta,beta,K_a,M_a,C_a,f_t,u_0,v_0,t_a,N,h,dt_ft = 0):
             #Get velocity and acceleration at t + h
             a_t[:,i+1] = a0 * (u_t[:,i+1] - u_t[:,i]) - a2 * v_t[:,i] - a3 * a_t[:,i]
             v_t[:,i+1] = v_t[:,i] + a6 * a_t[:,i] + a7 * a_t[:,i+1]
+
     return u_t,v_t,a_t
     
     

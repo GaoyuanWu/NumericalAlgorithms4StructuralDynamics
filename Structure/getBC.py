@@ -11,6 +11,7 @@
 Specify boundary conditions at "Original Node".
 1: Fixed
 2: Pinned
+3: Roller
 
 Transform original node to "meshed node" index.
 Reduce the size of global M & K.
@@ -44,6 +45,10 @@ def MK_Reduction(M,K,bc,ini_to_new):
             active_dof.remove(temp_node_index*3)
             active_dof.remove(temp_node_index*3 + 1)
             inact_dof.append(temp_node_index*3) #x
+            inact_dof.append(temp_node_index*3 + 1)#y
+            inact_num += 2
+        elif list(bc.values())[i] == 3:
+            active_dof.remove(temp_node_index*3 + 1)
             inact_dof.append(temp_node_index*3 + 1)#y
             inact_num += 2
 
