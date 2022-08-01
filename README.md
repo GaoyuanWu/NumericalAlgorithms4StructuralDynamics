@@ -44,7 +44,7 @@ Import `getBC` as `getBC`.
 `bc` is a dictionary storing initial node index and the node's constraints.
 key:value -> key is initial node index in python, value is 1 for fixed BC, 2 for pinned and 3 for roller support.
 Example:
-```js
+```python
 #Node 1-4 are fixed
 bc = {0:1,1:1,2:1,3:1} 
 ```
@@ -59,7 +59,7 @@ bc = {0:1,1:1,2:1,3:1}
 ### Time integration
 Before implementing the time integration. One needs to define the function for external loading.
 For functional input, below is an example:
-```js
+```python
 #Test External loading 1: acting on node 9 (8 in py), postive x direction
 def f1(x):
     return 1000
@@ -78,7 +78,7 @@ def test_f(x,itn = itn,glb_to_bc = glb_to_bc,f = f1,f_ini_node = f1_ini_node,dof
 
 For ground motion records, below is an example:
 
-```json
+```python
 #Test External loading 2: earthquake
 
 GM_tab = pd.read_excel('GM.xlsx')
@@ -94,7 +94,7 @@ def test_gm(M_a,act_num = act_num,GM_data = GM_data):
 Afterwards, we are ready to implement the the time integration. Import corresponding `.py` file from `TimeIntegration` folder.
 Take Newmark-beta method as an example:
 
-```json
+```python
 # u_0 and v_0 are 1D arrays for inital conditions
 # t_a is the starting time
 # N,h are number of steps and grid size for time integration
