@@ -29,6 +29,7 @@ from structdyn_jax.problems import EarthquakeProblem, finite_difference_grad, ze
 
 OUT = ROOT / "docs" / "figures"
 OUT.mkdir(parents=True, exist_ok=True)
+DATA_OUT = OUT / "data"
 
 # Reference palette (dataviz skill): categorical slots 1-2, neutral inks, blue<->red diverging.
 BLUE, ORANGE = "#2a78d6", "#eb6834"
@@ -69,6 +70,12 @@ def animation(quick):
     frame, U, ag, dt, w2 = earthquake_run(2.5 if quick else 1.0, T)
     t = np.arange(len(ag)) * dt
     roof = U[:, frame.orig_to_new[ROOF_NODE], 0] * 1000  # mm
+    write_history_csv(
+        "frame_earthquake_roof.csv",
+        f"Animation: 3-story frame, h_mesh = {frame_h(frame)} m, full Kern County record, horizontal influence vector, "
+        "5 % Rayleigh damping (modes 1-2), Newmark gamma=0.5 beta=0.25, h = dt = 0.005 s. "
+        "a_g in m/s^2 (legacy scale x10); roof = node 11 horizontal displacement relative to the ground, in mm.",
+        t, {"a_g_m_s2": ag, "u_roof_mm": roof})
     scale = 250.0
     stride = 12  # 0.06 s per frame
     frames = range(0, len(t), stride)
@@ -140,6 +147,62 @@ def frame_h(frame):
 
 
 # ---------------------------------------------------------------------------
+def error_metrics(u, u_ref):
+    """Unambiguous comparison metrics for one DOF history (both arrays same time grid).
+
+    eps_max   = max_t |u - u_ref| / max_t |u_ref|   (largest error anywhere, normalized by the reference peak)
+    eps_peak  = |u - u_ref| at t_peak / max_t |u_ref|, t_peak = argmax_t |u_ref|  (error at the reference peak)
+    peak_ratio = max_t |u| / max_t |u_ref|            (the two peaks may occur at different times)
+    """
+    e = u - u_ref
+    P = np.abs(u_ref).max()
+    i = int(np.argmax(np.abs(u_ref)))
+    return dict(eps_max=float(np.abs(e).max() / P), eps_peak=float(abs(e[i]) / P),
+                peak_ratio=float(np.abs(u).max() / P), ref_peak_m=float(P), i_peak=i, i_err=int(np.argmax(np.abs(e))))
+
+
+def write_history_csv(name, header, t, columns):
+    """Write a time-history CSV to docs/figures/data/ (columns: name -> array, in mm)."""
+    DATA_OUT.mkdir(parents=True, exist_ok=True)
+    names = ["t_s"] + list(columns)
+    arr = np.column_stack([t] + [columns[c] for c in columns])
+    with open(DATA_OUT / name, "w") as fh:  # '#' description lines, then a plain column-name row
+        fh.write("".join(f"# {line}\n" for line in header.strip().splitlines()))
+        fh.write(",".join(names) + "\n")
+        np.savetxt(fh, arr, delimiter=",", fmt="%.10g")
+
+
+def _compare_panel(fig, gs_slot, t, u_ref, u, lab_ref, lab, col_ref, col, title, sharex=None):
+    """Top: the two histories. Bottom: the error u - u_ref vs time, with the two metric instants marked."""
+    sub = gs_slot.subgridspec(2, 1, height_ratios=[2.2, 1], hspace=0.08)
+    ax = fig.add_subplot(sub[0], sharex=sharex)
+    ax.plot(t, 1000 * u_ref, color=col_ref, lw=3.5 if col_ref == MUTED else 1.2, label=lab_ref)
+    ax.plot(t, 1000 * u, color=col, lw=1.2 if col_ref == MUTED else 1.0, label=lab)
+    ax.set_ylabel("roof u [mm]")
+    ax.legend(loc="upper left", ncol=2, fontsize=8.5)
+    ax.tick_params(labelbottom=False)
+    m = error_metrics(u, u_ref)
+    ip, ie = m["i_peak"], m["i_err"]
+    ax.plot(t[ip], 1000 * u_ref[ip], "o", ms=7, color=INK, mfc="none", mew=1.4, zorder=5)
+    ax.annotate("reference peak", (t[ip], 1000 * u_ref[ip]), xytext=(-8, 0), textcoords="offset points",
+                ha="right", va="center", fontsize=8, color=INK2)
+    extra = f" · peak ratio max|u|/max|u$_{{ref}}$| = {m['peak_ratio']:.3f}" if abs(m["peak_ratio"] - 1) > 1e-3 else ""
+    ax.set_title(f"{title}\nε$_{{max}}$ = {m['eps_max']:.2g} (orange ■, t = {t[ie]:.2f} s) · "
+                 f"ε$_{{peak}}$ = {m['eps_peak']:.2g} (○, t = {t[ip]:.2f} s){extra}", loc="left", fontsize=10)
+    ax2 = fig.add_subplot(sub[1], sharex=ax)
+    e = 1000 * (u - u_ref)
+    ex = int(np.floor(np.log10(np.abs(e).max())))
+    sc = 10.0 ** ex if abs(ex) >= 3 else 1.0
+    ax2.plot(t, e / sc, color=INK2, lw=0.9)
+    ax2.axhline(0, color=MUTED, lw=0.8)
+    ax2.plot(t[ie], e[ie] / sc, "s", ms=6, color=ORANGE, zorder=5)
+    ax2.plot(t[ip], e[ip] / sc, "o", ms=7, color=INK, mfc="none", mew=1.4, zorder=5)
+    unit = f"[10$^{{{ex}}}$ mm]" if sc != 1.0 else "[mm]"
+    ax2.set_ylabel(f"u − u$_{{ref}}$\n{unit}")
+    ax2.margins(y=0.15)
+    return ax2, m
+
+
 def verification(quick):
     from conftest import np_record_interp
     from pynite_ref import build_pynite, modal_exact_piecewise_linear, pynite_reduced_matrices
@@ -147,8 +210,8 @@ def verification(quick):
     import Newmark  # legacy
 
     metrics = {}
-    fig, axes = plt.subplots(3, 1, figsize=(8, 8.5), sharex=False)
-    fig.subplots_adjust(hspace=0.6)
+    fig = plt.figure(figsize=(8.5, 12))
+    gs = fig.add_gridspec(3, 1, hspace=0.38)
 
     # (a) legacy NumPy vs JAX (same forcing)
     frame, mp = three_story_frame(2.5)
@@ -164,14 +227,16 @@ def verification(quick):
     uJ = np.asarray(sj.newmark(Ka, Ma, C, sj.ground_motion_load(Ma, jnp.ones(n), rec, dt), jnp.zeros(n), jnp.zeros(n), dt, N, a0=jnp.zeros(n))[0])
     k = frame.dof(ROOF_NODE, 0)
     t = np.arange(N + 1) * dt
-    err = np.abs(uL - uJ).max() / np.abs(uL).max()
-    metrics["legacy_vs_jax_max_rel_err"] = float(err)
-    a_ = axes[0]
-    a_.plot(t, 1000 * uL[:, k], color=MUTED, lw=3.5, label="legacy NumPy (2021)")
-    a_.plot(t, 1000 * uJ[:, k], color=BLUE, lw=1.2, label="JAX port")
-    a_.set_title(f"(a) Forward parity with the original solver · max error {err:.1e} of peak")
-    a_.set_ylabel("roof u [mm]")
-    a_.legend(loc="upper left", ncol=2)
+    ax_a, m = _compare_panel(fig, gs[0], t, uL[:, k], uJ[:, k], "legacy NumPy 2021 (reference)", "JAX port", MUTED, BLUE,
+                             "(a) Forward parity with the original solver (same forcing)")
+    m["eps_max_all_dofs"] = float(np.abs(uL - uJ).max() / np.abs(uL).max())  # what the parity tests assert on
+    metrics["a_legacy_vs_jax_roof"] = m
+    write_history_csv(
+        "verification_a_legacy_vs_jax.csv",
+        "Panel (a): roof (node 11) horizontal displacement [mm]. 3-story frame, h_mesh = 2.5 m, Kern County record "
+        "(first sample dropped, legacy), influence r = ones (legacy), C = 0.3 M + 1e-3 K, Newmark gamma=0.5 beta=0.25, "
+        "h = dt = 0.005 s, a0 = 0. u_legacy: Structure/TimeIntegration NumPy code; u_jax: structdyn_jax.newmark.",
+        t, {"u_legacy_mm": 1000 * uL[:, k], "u_jax_mm": 1000 * uJ[:, k], "error_jax_minus_legacy_mm": 1000 * (uJ[:, k] - uL[:, k])})
 
     # (b) PyNite-assembled matrices + exact modal solution
     model = build_pynite(frame, mp)
@@ -185,14 +250,15 @@ def verification(quick):
     Cm = Ma @ Phi @ jnp.diag(0.1 * jnp.sqrt(w2)) @ Phi.T @ Ma
     u = np.asarray(sj.newmark(Ka, Ma, Cm, sj.ground_motion_load(Ma, r, rec, dt), jnp.zeros(n), jnp.zeros(n), dt / 4, 4 * nr)[0])[::4]
     t = np.arange(nr + 1) * dt
-    e2 = np.abs(u[:, k] - u_ref[:, k]).max() / np.abs(u_ref[:, k]).max()
-    metrics["pynite_modal_vs_jax_newmark_rel_err"] = float(e2)
-    a_ = axes[1]
-    a_.plot(t, 1000 * u_ref[:, k], color=MUTED, lw=3.5, label="PyNite K, M + exact modal solution")
-    a_.plot(t, 1000 * u[:, k], color=BLUE, lw=1.2, label="JAX Newmark, h = dt/4")
-    a_.set_title(f"(b) Independent check with PyNite · max difference {100 * e2:.2f} % of peak")
-    a_.set_ylabel("roof u [mm]")
-    a_.legend(loc="upper left", ncol=2)
+    ax_b, m = _compare_panel(fig, gs[1], t, u_ref[:, k], u[:, k], "PyNite K, M + exact modal solution (reference)",
+                             "JAX Newmark, h = dt/4", MUTED, BLUE, "(b) Independent check with PyNite")
+    metrics["b_pynite_modal_vs_jax_roof"] = m
+    write_history_csv(
+        "verification_b_pynite_vs_jax.csv",
+        "Panel (b): roof (node 11) horizontal displacement [mm]. 3-story frame, h_mesh = 2.5 m, full Kern County record, "
+        "horizontal influence vector, 5 % classical modal damping in every mode. u_pynite_modal: Nigam-Jennings exact modal "
+        "superposition (all modes) on PyNite-assembled K, M. u_jax: structdyn_jax.newmark, h = dt/4 (every 4th step written).",
+        t, {"u_pynite_modal_mm": 1000 * u_ref[:, k], "u_jax_newmark_mm": 1000 * u[:, k], "error_jax_minus_pynite_mm": 1000 * (u[:, k] - u_ref[:, k])})
 
     # (c) SAP2000 trace from the original project
     t_sap, d_sap = sj.loads.load_sap2000_reference()
@@ -203,15 +269,26 @@ def verification(quick):
     z5 = jnp.zeros(n5)
     u5 = np.asarray(sj.newmark(K5, M5, 0 * K5, sj.ground_motion_load(M5, jnp.ones(n5), rec, dt), z5, z5, dt, 4000, a0=z5)[0])
     roof5 = u5[:, frame5.dof(ROOF_NODE, 0)]
-    metrics["sap_peak_ratio"] = float(np.abs(roof5).max() / np.abs(d_sap).max())
-    metrics["sap_corr_20s"] = float(np.corrcoef(roof5, d_sap)[0, 1])
-    a_ = axes[2]
-    a_.plot(t_sap, 1000 * d_sap, color=ORANGE, lw=1.2, label="SAP2000 (original project)")
-    a_.plot(t_sap, 1000 * roof5, color=BLUE, lw=1.0, label="JAX port, legacy set-up")
-    a_.set_title(f"(c) SAP2000 benchmark · peak ratio {metrics['sap_peak_ratio']:.3f}; phase drifts after ~5 s")
-    a_.set_ylabel("roof u [mm]")
-    a_.set_xlabel("time [s]")
-    a_.legend(loc="upper left", ncol=2)
+    ax_c, m = _compare_panel(fig, gs[2], t_sap, d_sap, roof5, "SAP2000, original project (reference)", "JAX port, legacy set-up",
+                             ORANGE, BLUE, "(c) SAP2000 benchmark (phase drifts after ~5 s; see VERIFICATION.md §3)")
+    m["eps_max_first_5s"] = float(np.abs(roof5 - d_sap)[:1001].max() / np.abs(d_sap).max())
+    m["corr_20s"] = float(np.corrcoef(roof5, d_sap)[0, 1])
+    metrics["c_sap2000_vs_jax_roof"] = m
+    write_history_csv(
+        "verification_c_sap2000_vs_jax.csv",
+        "Panel (c): roof (node 11) horizontal displacement [mm]. Legacy set-up: 3-story frame, h_mesh = 0.5 m, undamped, "
+        "Kern County record (first sample dropped), influence r = ones, Newmark h = dt = 0.005 s, a0 = 0. "
+        "u_sap2000: SAP2000 modal superposition from the original project (Structure/Disp.xlsx).",
+        t_sap, {"u_sap2000_mm": 1000 * d_sap, "u_jax_mm": 1000 * roof5, "error_jax_minus_sap2000_mm": 1000 * (roof5 - d_sap)})
+    ax_c.set_xlabel("time [s]")
+
+    fig.text(0.0, 0.065,
+             "All metrics use the roof (node 11) horizontal displacement shown in the panel, over the whole plotted record:\n"
+             "ε$_{max}$ = max$_t$|u − u$_{ref}$| / max$_t$|u$_{ref}$|  (largest error at any time ■, divided by the reference peak).\n"
+             "ε$_{peak}$ = |u − u$_{ref}$| at t$_{peak}$ / max$_t$|u$_{ref}$|, where t$_{peak}$ = argmax$_t$|u$_{ref}$|  "
+             "(error at the instant of the reference peak ○).\n"
+             "Time histories: docs/figures/data/verification_{a,b,c}_*.csv",
+             fontsize=8.5, color=INK2, va="top")
     fig.savefig(OUT / "verification.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
     return metrics

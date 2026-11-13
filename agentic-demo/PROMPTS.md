@@ -38,6 +38,26 @@ The user prompts are copied verbatim. The timeline entries are a summary of what
 10. **Figures.** Animation, verification plot, sensitivity map and mode shapes, using a validated colorblind-safe palette. The agent rendered and inspected them; three iterations fixed label collisions and an outlier-dominated scatter. The GIF went from 7 MB to 3.7 MB.
 11. **CI and docs.** GitHub Actions on Python 3.11 and 3.12 (tests plus a figure smoke run). Wrote the README section, `docs/VERIFICATION.md` and this demo. Pushed to `jax-migration` and watched CI.
 
-## P02+: follow-ups
+## P02: Fix an ambiguous metric
 
-_None yet. Add the next prompts here verbatim, with a one-line note on what changed after each._
+**November 13, 2026 · Verbatim user message**
+
+> For the verification image `docs/figures/verification.png`, what does the peak mean?
+> i) did you mean the peak error?
+> ii) or did you mean the error when the roof's displacement goes to the peak.
+> Fix the ambiguity.
+>
+> It might also be helpful to output .csv files that record time history of what you plotted for different solver/setup.
+
+**What changed:**
+
+- The agent answered "neither": every "x of peak" meant max_t|u − u_ref| / max_t|u_ref|.
+- While checking, it found that the panel (a) number had been computed over all DOFs although only the roof is plotted, and that the SAP2000 "peak ratio" compared peaks at different times.
+- The figure now reports two named metrics per panel, ε_max (largest error at any time) and ε_peak (error at the reference peak). Each is computed on the plotted roof DOF, marked on a new error-vs-time strip, and labelled with the time at which it occurs.
+- `docs/VERIFICATION.md` gained a notation section, and every "of peak" phrase in the docs and tests now names its metric and scope.
+- The plotted histories are written to `docs/figures/data/*.csv`, with the full setup in the header lines.
+- New, previously hidden fact: SAP2000's peak-magnitude ratio is 0.983, but at the instant SAP2000 peaks the error is 30 % (phase drift).
+
+## P03+: follow-ups
+
+_Add the next prompts here verbatim, with a one-line note on what changed after each._

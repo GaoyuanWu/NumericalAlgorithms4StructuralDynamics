@@ -57,7 +57,8 @@ def test_earthquake_time_history_vs_pynite_modal(case, method):
 
     Reference: exact (Nigam-Jennings) modal superposition on PyNite's own K, M.
     Our implicit schemes are 2nd order; with h = dt/4 the roof history must
-    agree to < 0.5 % of its peak (Wilson-theta is more dissipative: < 2 %).
+    agree to eps_max = max_t|u - u_ref| / max_t|u_ref| < 0.5 % (Wilson-theta is more
+    dissipative: < 2 %). Roof DOF.
     """
     frame = case["frame"]
     Kp, Mp = pynite_reduced_matrices(case["model"], frame)
@@ -87,8 +88,9 @@ def test_sap2000_reference():
 
     The original project compared against this trace. We reproduce the legacy
     set-up (h = 0.5 m mesh, all-ones influence vector, first sample dropped,
-    Newmark with h = dt). Asserted: peak within 2 %, and the first 5 s within
-    4 % of the peak.
+    Newmark with h = dt). Asserted (roof DOF): peak ratio
+    max|u| / max|u_sap| within 2 %, and max_t|u - u_sap| over the first 5 s
+    below 4 % of max_t|u_sap|.
 
     Not asserted: the full 20 s history. Our fundamental period is ~0.5 %
     shorter than SAP2000's, which accumulates to a visible phase drift over

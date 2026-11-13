@@ -13,7 +13,7 @@ from conftest import legacy_three_story, np_record_interp
 import structdyn_jax as sj
 from structdyn_jax.model import ROOF_NODE, element_props, three_story_frame
 
-RTOL = 1e-9  # relative to the peak response
+RTOL = 1e-9  # eps_max over all DOFs: max abs difference / max abs reference (any time, any DOF)
 
 
 @pytest.mark.parametrize("h", [5, 2.5, 1, 0.5])
@@ -92,7 +92,8 @@ def test_legacy_record_branch_only_differs_by_interpolation(legacy, system, name
     (b) That interpolation reads sample i+1 instead of i whenever t/dt rounds up
         to an integer (a time jitter of one record sample at ~5 % of steps).
         Measured effect vs. consistent interpolation (3-story frame, h = 2.5 m,
-        first 5 s): ~6.7 % of the peak displacement for Newmark. The test pins
+        first 5 s): max over time and DOFs of |difference| = ~6.7 % of the
+        peak displacement max|u_ref| for Newmark. The test pins
         the effect to (0.1 %, 15 %) so a change in either code path is noticed.
     """
     s = system

@@ -29,7 +29,7 @@ I supplied the repository, named the references (PyNite, finite differences), an
 >
 > In addition to **code development**, Review the example and guideline of such demo provided by the PI: "https://github.com/SOLARIS-JHU/solaris-agentic-research", so that this code development procedure becomes a new example by me. Record this session, of what prompts that helped, did not help much.
 
-**Observed result (one session, no follow-ups yet):**
+**Observed result of this first prompt:**
 
 - a new package `structdyn_jax/` with the same mesh, FEM, BCs and four integrators, rewritten as `lax.scan` loops;
 - 43 automated tests, run on every push by GitHub Actions;
@@ -51,7 +51,7 @@ The prompt named **external checks** (PyNite for forward, finite differences for
 
 The first parity run differed from the old solver by 2 %. The agent bisected it to one time step. Inside compiled JAX, `floor(t/dt)` and `mod(t, dt)` disagreed at a sample boundary, so the earthquake record jumped one sample ahead.
 
-While fixing that, it found that **my original code has the same class of bug in plain Python**: `int(t/dt)` and `t % dt` disagree whenever `t/dt` rounds up. That reads the wrong sample at about 5 % of steps, changing the response by **6.7 % of peak** over the first 5 s.
+While fixing that, it found that **my original code has the same class of bug in plain Python**: `int(t/dt)` and `t % dt` disagree whenever `t/dt` rounds up. That reads the wrong sample at about 5 % of steps, changing the response over the first 5 s by up to **6.7 % of the peak displacement** (largest difference at any time and DOF, divided by the reference peak).
 
 **Judgment call (mine to confirm):** the agent did *not* reproduce the bug bit-for-bit. It defined "exact" as *same algorithm, same forcing*: the unmodified legacy integrators agree with JAX to **1.5e-13**. A separate test pins and documents the legacy bug.
 
@@ -72,9 +72,9 @@ The agent found six more quirks and listed each with its measured effect and a s
 
 ### C. PyNite agreed to 1e-8; SAP2000 did not fully, and the agent refused to overfit
 
-PyNite built its own matrices and agreed to 1e-10 (K, M) and 1e-8 (static deflections and frequencies). Time histories matched an exact modal solution on PyNite's matrices to **0.09 %** of peak.
+PyNite built its own matrices and agreed to 1e-10 (K, M) and 1e-8 (static deflections and frequencies). Time histories matched an exact modal solution on PyNite's matrices with a largest error at any time of **0.09 %** of the reference peak, and 0.003 % at the instant of the peak.
 
-The 2021 SAP2000 benchmark matched the **peak within 1.7 %**. The full history drifted out of phase, with correlation 0.79. The agent tested the hypotheses one at a time:
+The 2021 SAP2000 benchmark matched the **peak magnitude within 1.7 %**. The full history drifted out of phase: correlation 0.79, and an error of 30 % of the peak at the instant SAP2000 peaks. The agent tested the hypotheses one at a time:
 
 - damping did not explain it (it ruined the peak);
 - a 0.5 % period difference did (correlation rises to 0.995), which is consistent with SAP2000's default shear deformation.
@@ -101,6 +101,26 @@ No single step serves both, so it switched to Richardson-extrapolated FD. All 28
 ### E. Figures needed render-and-look iterations
 
 The first sensitivity figure had overlapping labels and an outlier-dominated scatter. The agent rendered, inspected and fixed it three times. Automated checks cannot catch this.
+
+### F. Follow-up: "what does the peak mean?"
+
+**Prompt source:** verbatim (second message of the session)
+
+> For the verification image `docs/figures/verification.png`, what does the peak mean?
+> i) did you mean the peak error?
+> ii) or did you mean the error when the roof's displacement goes to the peak.
+> Fix the ambiguity.
+>
+> It might also be helpful to output .csv files that record time history of what you plotted for different solver/setup.
+
+**Observed result:** the agent's "max error 1.5e-13 of peak" meant neither reading exactly. It was the largest error at any time divided by the reference peak. Checking it also exposed two inconsistencies the agent had not noticed:
+
+- one panel's number was computed over all DOFs while only the roof was plotted;
+- the SAP2000 "peak ratio" compared peaks at different instants. At the instant SAP2000 peaks, the error is actually **30 %**.
+
+The figure now shows both metrics (ε_max and ε_peak) with their times and an error strip. The docs define the notation, and every plotted history is exported to CSV.
+
+**Lesson:** a domain expert reading one label carefully caught what 43 passing tests could not. Ask the agent to *define* every summary number, and ask for the raw data behind every plot so you can check it yourself.
 
 ## 4. Final result and researcher checks
 

@@ -4,10 +4,33 @@
     "peak_roof_mm": 4.7862337160678115
   },
   "verification": {
-    "legacy_vs_jax_max_rel_err": 1.4525575060425693e-13,
-    "pynite_modal_vs_jax_newmark_rel_err": 0.0009111753417988377,
-    "sap_peak_ratio": 0.9829135039920104,
-    "sap_corr_20s": 0.7911739787282016
+    "a_legacy_vs_jax_roof": {
+      "eps_max": 1.4533313064603589e-13,
+      "eps_peak": 1.7106842430199372e-14,
+      "peak_ratio": 0.9999999999999829,
+      "ref_peak_m": 0.002890049362824628,
+      "i_peak": 1920,
+      "i_err": 1984,
+      "eps_max_all_dofs": 1.4525575060425693e-13
+    },
+    "b_pynite_modal_vs_jax_roof": {
+      "eps_max": 0.0009111753417988377,
+      "eps_peak": 3.346476554147306e-05,
+      "peak_ratio": 0.9999665352344586,
+      "ref_peak_m": 0.002064901022230295,
+      "i_peak": 1921,
+      "i_err": 1957
+    },
+    "c_sap2000_vs_jax_roof": {
+      "eps_max": 0.6827069635853504,
+      "eps_peak": 0.2962887715598886,
+      "peak_ratio": 0.9829135039920104,
+      "ref_peak_m": 0.01682,
+      "i_peak": 3941,
+      "i_err": 4000,
+      "eps_max_first_5s": 0.031948458639485915,
+      "corr_20s": 0.7911739787282016
+    }
   },
   "sensitivity": {
     "J0_rms_roof_m": 0.0009418361058045602,

@@ -9,9 +9,9 @@ A JAX port of the original NumPy solver. It keeps the same frame FEM, meshing,
 boundary conditions, and the four time integrators (Newmark-β, Wilson-θ, Bathe, SSP-RK3),
 and adds **gradients**:
 
-* **Forward:** reproduces the original solver to ≤ 1e-9 of peak (1.5e-13 in practice). It also agrees with
+* **Forward:** reproduces the original solver to ε_max ≤ 1e-9 (1.5e-13 in practice). ε_max is the largest error at any time divided by the reference peak; see [notation](docs/VERIFICATION.md#notation-what-error-relative-to-the-peak-means). It also agrees with
   the open-source FEM code [PyNite](https://github.com/JWock82/Pynite): matrices, static deflections,
-  natural frequencies (1e-8), and earthquake time histories (0.09 % of peak vs an exact modal solution).
+  natural frequencies (1e-8), and earthquake time histories (ε_max = 0.09 % vs an exact modal solution).
 * **Backward:** `jax.grad` / `jax.jvp` of any response w.r.t. member stiffness, mass, damping, or nodal
   coordinates. Checked against finite differences for all 28 design parameters and 4 integrators.
 
@@ -33,7 +33,7 @@ Lower-level API: `frame.matrices(m, E, A, I)` returns `(K, M)`; `sj.newmark(K, M
 |---|---|
 | [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | every check, the numbers, and **legacy quirks found during the port** |
 | [`tests/`](tests) | 43 tests: legacy parity, PyNite, SAP2000, SDOF closed form, gradient vs finite differences |
-| [`scripts/make_figures.py`](scripts/make_figures.py) | regenerates all figures in `docs/figures/` |
+| [`scripts/make_figures.py`](scripts/make_figures.py) | regenerates all figures in `docs/figures/` and the plotted time histories in `docs/figures/data/*.csv` |
 | [`agentic-demo/`](agentic-demo/README.md) | workshop write-up: how this migration was done with an AI agent, and which prompts helped |
 
 ```bash
