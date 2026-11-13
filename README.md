@@ -1,5 +1,58 @@
 # NumericalAlgorithms4StructuralDynamics
- Gaoyuan Wu's APC523 Final Project
+Gaoyuan Wu's APC523 Final Project, now with a **differentiable JAX solver** (`structdyn_jax/`).
+
+![3-story frame under the 1952 Kern County record](docs/figures/frame_earthquake.gif)
+
+## What's new: `structdyn_jax` (branch `jax-migration`)
+
+A JAX port of the original NumPy solver. It keeps the same frame FEM, meshing,
+boundary conditions, and the four time integrators (Newmark-β, Wilson-θ, Bathe, SSP-RK3),
+and adds **gradients**:
+
+* **Forward:** reproduces the original solver to ε_max ≤ 1e-9 (1.5e-13 in practice). ε_max is the largest error at any time divided by the reference peak; see [notation](docs/VERIFICATION.md#notation-what-error-relative-to-the-peak-means). It also agrees with
+  the open-source FEM code [PyNite](https://github.com/JWock82/Pynite): matrices, static deflections,
+  natural frequencies (1e-8), and earthquake time histories (ε_max = 0.09 % vs an exact modal solution).
+* **Backward:** `jax.grad` / `jax.jvp` of any response w.r.t. member stiffness, mass, damping, or nodal
+  coordinates. Checked against finite differences for all 28 design parameters and 4 integrators.
+
+```python
+import jax, structdyn_jax as sj
+from structdyn_jax.problems import EarthquakeProblem, zero_params
+
+prob = EarthquakeProblem(h_mesh=2.5, duration=15.0)    # legacy 3-story frame, Kern County record
+p = zero_params()                                       # log-scale design factors (0 = original design)
+J, dJ = jax.value_and_grad(prob.rms_roof)(p)            # RMS roof drift and its gradient, one reverse pass
+```
+
+Lower-level API: `frame.matrices(m, E, A, I)` returns `(K, M)`; `sj.newmark(K, M, C, load, u0, v0, h, N)`;
+`sj.ground_motion_load(M, frame.influence(0), record, dt)`.
+
+![sensitivity](docs/figures/sensitivity.png)
+
+| | |
+|---|---|
+| [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | every check, the numbers, and **legacy quirks found during the port** |
+| [`tests/`](tests) | 43 tests: legacy parity, PyNite, SAP2000, SDOF closed form, gradient vs finite differences |
+| [`scripts/make_figures.py`](scripts/make_figures.py) | regenerates all figures in `docs/figures/` and the plotted time histories in `docs/figures/data/*.csv` |
+| [`agentic-demo/`](agentic-demo/README.md) | workshop write-up: how this migration was done with an AI agent, and which prompts helped |
+
+```bash
+pip install -r requirements.txt
+```
+
+```bash
+pytest
+```
+
+```bash
+python scripts/make_figures.py
+```
+
+Tests run on every push via GitHub Actions (`.github/workflows/tests.yml`).
+
+---
+
+# Original project documentation (2021, NumPy version)
 
 ## Introduction
 This solver is cabaple of solving structural dynamics problem for 2D frame system. The input can be continuous function or discrete data points such as ground motion records.

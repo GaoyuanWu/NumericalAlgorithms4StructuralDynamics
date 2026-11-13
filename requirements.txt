@@ -1,0 +1,11 @@
+# JAX solver
+jax>=0.4.30
+numpy>=1.26
+# verification / legacy reference / figures
+scipy>=1.11
+pandas>=2.0
+openpyxl>=3.1
+PyNiteFEA>=1.0
+matplotlib>=3.8
+pillow>=10
+pytest>=8
