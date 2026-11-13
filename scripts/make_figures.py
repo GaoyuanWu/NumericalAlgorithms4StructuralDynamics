@@ -305,13 +305,39 @@ def sensitivity(quick):
 
     # FD check of every entry (Richardson)
     fd = {k: v / J0 for k, v in finite_difference_grad(f, p).items()}
-    ad_all = np.concatenate([np.ravel(g[k]) for k in sorted(g)])
-    fd_all = np.concatenate([np.ravel(fd[k]) for k in sorted(fd)])
+    # plotting order, grouped: EI per member, mass per member, damping, height
+    order = ["log_EI", "log_m", "log_zeta", "log_height"]
+    ad_all = np.concatenate([np.ravel(g[k]) for k in order])
+    fd_all = np.concatenate([np.ravel(fd[k]) for k in order])
     max_rel = float(np.abs(ad_all - fd_all).max() / np.abs(fd_all).max())
 
-    fig = plt.figure(figsize=(13, 4.6))
-    gs = fig.add_gridspec(1, 3, width_ratios=[1.9, 1.0, 1.1], wspace=0.45)
-    ax = fig.add_subplot(gs[0])
+    # Group sensitivities: predicted from the gradient vs. re-simulating with the whole group scaled by +-1 %
+    d = np.log(1.01)
+    groups = [  # (label, gradient prediction, parameter perturbation)
+        ("all member EI", g["log_EI"].sum(), lambda s: {**p, "log_EI": p["log_EI"] + s}),
+        ("all member masses", g["log_m"].sum(), lambda s: {**p, "log_m": p["log_m"] + s}),
+        ("damping ratio ζ", float(g["log_zeta"]), lambda s: {**p, "log_zeta": p["log_zeta"] + s}),
+        ("story heights", float(g["log_height"]), lambda s: {**p, "log_height": p["log_height"] + s}),
+    ]
+    sim = [(float(f(pert(d))) - float(f(pert(-d)))) / (2 * d) / J0 for _, _, pert in groups]
+
+    fig = plt.figure(figsize=(15, 6.6))
+    gs = fig.add_gridspec(2, 3, width_ratios=[1.55, 1.0, 1.15], height_ratios=[1.0, 3.2], wspace=0.42, hspace=0.05)
+    box = dict(fontsize=9, color=INK2, va="top", ha="left", linespacing=1.45)
+
+    def header(col, title, body):
+        h = fig.add_subplot(gs[0, col])
+        h.axis("off")
+        h.text(0, 1.0, title, fontsize=11, fontweight="bold", color=INK, va="top", ha="left")
+        h.text(0, 0.72, body, transform=h.transAxes, **box)
+
+    # (a) per-member EI sensitivity on the frame ---------------------------------------
+    header(0, "(a) Which members control the roof response?",
+           f"J = RMS of the roof (node 11) horizontal displacement over t = 0–{prob.duration:.0f} s\n"
+           f"of the Kern County 1952 record, 5 % Rayleigh damping, 2.5 m mesh.\n"
+           f"Original design: J$_0$ = {1000 * J0:.2f} mm.  Number on each member = ∂ ln J / ∂ ln EI:\n"
+           "% change in J per +1 % in that member's EI (all 13 from one reverse-mode pass).")
+    ax = fig.add_subplot(gs[1, 0])
     s = g["log_EI"]
     lim = np.abs(s).max()
     norm = TwoSlopeNorm(vmin=-lim, vcenter=0, vmax=lim)
@@ -326,46 +352,67 @@ def sensitivity(quick):
             ax.text(mx, my - 0.8, f"{s[e]:+.2f}", fontsize=8.5, color=INK, ha="center", va="top")
             continue
         my = min(y0, y1) + 0.3 * abs(y1 - y0)  # columns: label low, clear of the beam labels
-        if mx < 15:  # left-half column: label to the left
+        if mx < 15:
             ax.text(mx - 0.8, my, f"{s[e]:+.2f}", fontsize=8.5, color=INK, ha="right", va="center")
-        else:  # right-half column: label to the right
+        else:
             ax.text(mx + 0.8, my, f"{s[e]:+.2f}", fontsize=8.5, color=INK, ha="left", va="center")
     ax.set_aspect("equal")
     ax.set_xlim(-5, 35)
     ax.set_ylim(-1, 16.5)
     ax.axis("off")
-    ax.set_title("Sensitivity of J to each member's EI\n(∂ ln J / ∂ ln EI, one reverse-mode pass)")
     cb = fig.colorbar(lc, ax=ax, orientation="horizontal", shrink=0.6, pad=0.02, aspect=30)
     cb.outline.set_visible(False)
     cb.ax.tick_params(colors=INK2, labelsize=8)
+    cb.set_label("∂ ln J / ∂ ln EI   (blue: stiffening this member reduces J)", color=INK2, fontsize=8.5)
 
-    ax2 = fig.add_subplot(gs[1])
-    names = ["story height", "damping ζ", "all EI", "all mass"]
-    vals = [float(g["log_height"]), float(g["log_zeta"]), float(g["log_EI"].sum()), float(g["log_m"].sum())]
-    ax2.barh(names, vals, color=[BLUE if v < 0 else ORANGE for v in vals], height=0.55)
+    # (b) group sensitivities: gradient prediction vs re-simulation ----------------------
+    header(1, "(b) Scale a whole group by +1 %",
+           "Bars: change in J predicted by the gradient alone\n"
+           "(sum of the group's entries; no extra simulation).\n"
+           "◇: actual change from re-simulating with the group ±1 %.\n"
+           "Small gaps (story height) = curvature over a finite 1 % step.")
+    ax2 = fig.add_subplot(gs[1, 1])
+    names = [n for n, _, _ in groups]
+    vals = [float(v) for _, v, _ in groups]
+    y = np.arange(len(names))[::-1]
+    ax2.barh(y, vals, color=[BLUE if v < 0 else ORANGE for v in vals], height=0.55, label="gradient prediction")
+    ax2.plot(sim, y, "D", ms=8, color=SURFACE, mec=INK, mew=1.4, zorder=4, label="re-simulation (±1 %)")
     ax2.axvline(0, color=INK2, lw=1)
-    for i, v in enumerate(vals):
-        ax2.text(v, i, f" {v:+.2f} ", va="center", ha="left" if v >= 0 else "right", fontsize=8.5, color=INK)
-    ax2.set_title("Global elasticities of J\n(scale a whole group by 1 %)")
+    for yi, v, sv in zip(y, vals, sim):
+        ax2.text(max(v, sv, 0) + 0.45, yi, f"{v:+.2f} %\n◇ {sv:+.2f} %", va="center", ha="left", fontsize=8.5, color=INK)
+    ax2.set_yticks(y, names)
+    ax2.set_xlabel("% change in J per +1 % in the group")
     ax2.grid(axis="y", visible=False)
-    span = max(abs(min(vals)), abs(max(vals))) * 1.6
-    ax2.set_xlim(-span, span)
+    ax2.set_xlim(min(min(vals), 0) - 0.6, max(vals) + 3.0)
+    ax2.set_ylim(-0.6, len(names) - 0.4)
 
-    ax3 = fig.add_subplot(gs[2])
+    # (c) every entry vs finite differences ----------------------------------------------
+    header(2, "(c) Is every gradient entry right?",
+           "28 design parameters (log-scale factors on the original design):\n"
+           "13 member flexural rigidities EI · 13 member masses per length ·\n"
+           "1 Rayleigh damping ratio ζ · 1 story-height scale (all y-coordinates).\n"
+           "Each JAX gradient entry vs a Richardson finite difference.")
+    ax3 = fig.add_subplot(gs[1, 2])
     rel = np.abs(ad_all - fd_all) / np.maximum(np.abs(fd_all), 1e-300)
-    ax3.scatter(np.arange(len(rel)), rel, s=22, color=BLUE, edgecolor=SURFACE, linewidth=0.8, zorder=3)
+    # x positions with a gap between groups: EI 0-12, mass 15-27, zeta 30, height 34
+    xpos = np.concatenate([np.arange(13), 15 + np.arange(13), [30, 34]])
+    for lo, hi in [(-0.6, 12.6), (29.4, 30.6)]:
+        ax3.axvspan(lo, hi, color=GRID, alpha=0.6, lw=0)
+    ax3.scatter(xpos, rel, s=24, color=BLUE, edgecolor=SURFACE, linewidth=0.8, zorder=3)
     ax3.axhline(1e-5, color=ORANGE, lw=1.2)
-    ax3.text(len(rel) - 1, 1.6e-5, "test tolerance 1e-5", color=INK2, fontsize=8.5, ha="right")
+    ax3.text(0, 1.5e-5, "test tolerance 1e-5", color=INK2, fontsize=8.5, ha="left", va="bottom")
     ax3.set_yscale("log")
-    ax3.set_ylim(1e-13, 1e-3)
-    ax3.set_xlabel("gradient entry (28 design parameters)")
+    ax3.set_ylim(1e-11, 1e-3)
+    ax3.set_xlim(-1.2, 35.8)
+    ax3.set_xticks([6, 21, 30, 34], ["EI\n(13 members)", "mass\n(13 members)", "ζ", "story\nheight"])
+    ax3.tick_params(axis="x", length=0)
     ax3.set_ylabel("|AD − FD| / |FD|")
-    ax3.set_title("Gradient check vs finite differences\n(Richardson-extrapolated)")
-    fig.text(0.01, -0.03, f"J = RMS roof displacement, Kern County record, first {prob.duration:.0f} s, 5 % Rayleigh damping, h = 2.5 m mesh. "
-             "Orange = increasing the parameter increases J.", color=INK2, fontsize=8.5)
+    ax3.grid(axis="x", visible=False)
+
     fig.savefig(OUT / "sensitivity.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
-    return dict(J0_rms_roof_m=J0, grad_vs_fd_max_rel=max_rel, dlnJ_dln={k: np.round(v, 4).tolist() for k, v in g.items()})
+    return dict(J0_rms_roof_m=J0, grad_vs_fd_max_rel=max_rel, dlnJ_dln={k: np.round(v, 4).tolist() for k, v in g.items()},
+                group_pct_per_pct={n: dict(gradient=round(float(v), 4), resimulated=round(sv, 4)) for (n, v, _), sv in zip(groups, sim)})
 
 
 if __name__ == "__main__":

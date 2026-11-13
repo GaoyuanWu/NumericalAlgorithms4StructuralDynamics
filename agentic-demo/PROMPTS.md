@@ -58,6 +58,22 @@ The user prompts are copied verbatim. The timeline entries are a summary of what
 - The plotted histories are written to `docs/figures/data/*.csv`, with the full setup in the header lines.
 - New, previously hidden fact: SAP2000's peak-magnitude ratio is 0.983, but at the instant SAP2000 peaks the error is 30 % (phase drift).
 
-## P03+: follow-ups
+## P03: Make the gradient figure self-explanatory
+
+**November 13, 2026 · Verbatim user message**
+
+> For gradient check figure,
+> i) left-hand side, define what J is next to the first sub-figure, not at subscript.
+> ii) middle, I have no idea what it verifies/outputs. Context needed.
+> iii) right hand side, what are the 28 design parameters, briefly mention what they are (in category groups)
+
+**What changed:**
+
+- Each panel now has an explanation block above it.
+- (a) defines J (RMS roof displacement, 0–15 s, J₀ = 0.94 mm) and what each member number means.
+- (b) was a bare bar chart of group elasticities. It now states that the bars are the gradient's *prediction* for scaling a whole group by 1 %, and adds a new check: ◇ markers from actually re-running the simulation with each group scaled ±1 %. They agree to within 0.02 percentage points except story height (4.00 vs 3.95), which the figure attributes to curvature over the finite step.
+- (c) lists the 28 parameters by group (13 EI, 13 masses, ζ, story height), and the x-axis is grouped and labelled accordingly.
+
+## P04+: follow-ups
 
 _Add the next prompts here verbatim, with a one-line note on what changed after each._

@@ -68,6 +68,24 @@
         0.2049
       ],
       "log_zeta": -0.202
+    },
+    "group_pct_per_pct": {
+      "all member EI": {
+        "gradient": -1.2248,
+        "resimulated": -1.2233
+      },
+      "all member masses": {
+        "gradient": 1.2454,
+        "resimulated": 1.2437
+      },
+      "damping ratio \u03b6": {
+        "gradient": -0.202,
+        "resimulated": -0.202
+      },
+      "story heights": {
+        "gradient": 3.998,
+        "resimulated": 3.9495
+      }
     }
   }
 }

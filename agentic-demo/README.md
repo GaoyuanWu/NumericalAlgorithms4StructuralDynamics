@@ -122,6 +122,19 @@ The figure now shows both metrics (ε_max and ε_peak) with their times and an e
 
 **Lesson:** a domain expert reading one label carefully caught what 43 passing tests could not. Ask the agent to *define* every summary number, and ask for the raw data behind every plot so you can check it yourself.
 
+### G. Follow-up: "I have no idea what it verifies"
+
+**Prompt source:** verbatim (third message of the session)
+
+> For gradient check figure,
+> i) left-hand side, define what J is next to the first sub-figure, not at subscript.
+> ii) middle, I have no idea what it verifies/outputs. Context needed.
+> iii) right hand side, what are the 28 design parameters, briefly mention what they are (in category groups)
+
+**Observed result:** every panel now has an explanation block, as shown in §D. The middle panel had only *displayed* numbers. It now *verifies* them: each gradient prediction is paired with a re-simulation of the scaled design. That check also revealed a visible curvature effect for story height (4.00 % predicted vs 3.95 % simulated), which the figure explains.
+
+**Lesson:** the agent's figures were designed for someone who already knew the setup. "What does this verify?" is a good question to ask about every panel. A panel that only displays a result should either be cut or turned into a check.
+
 ## 4. Final result and researcher checks
 
 | | Who checked |

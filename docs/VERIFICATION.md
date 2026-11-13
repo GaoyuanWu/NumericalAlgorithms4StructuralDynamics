@@ -95,6 +95,15 @@ chain), and a story-height scale (via nodal coordinates).
 | Bathe, Wilson-θ, SSP-RK3, all 28 parameters | ≤ 1e-5 rel | `test_other_integrators_gradients` |
 | Forward mode (`jacfwd`) = reverse mode (`jacrev`) for the full roof history | ≤ 1e-10 | `test_forward_and_reverse_mode_agree` |
 | Geometry gradient finite (legacy quirk 6) | pass | `test_gradient_wrt_horizontal_beam_coordinates_is_finite` |
+| Group sensitivities (all EI, all masses, ζ, story height): gradient prediction vs re-simulating with the group scaled ±1 % | −1.22/−1.22, +1.25/+1.24, −0.20/−0.20, +4.00/+3.95 % per % | `scripts/make_figures.py` (figure, not a test; the story-height gap is curvature over the finite 1 % step) |
+
+![sensitivity](figures/sensitivity.png)
+
+In the figure, J = RMS of the roof (node 11) horizontal displacement over the
+first 15 s of the Kern County record (5 % Rayleigh damping, 2.5 m mesh). The 28
+design parameters are log-scale factors on the original design: 13 member EI,
+13 member masses per length, the Rayleigh damping ratio ζ, and a story-height
+scale applied to all y-coordinates.
 
 Finite differences use central differences with **Richardson extrapolation**
 (ε = 1e-4, ε/2). A step study showed plain FD is round-off-limited for the
