@@ -1,8 +1,8 @@
 # Demo: porting a 2021 NumPy dynamics solver to a verified, differentiable JAX solver
 
-**Researcher:** Gaoyuan Wu · **Tool:** Claude Code (cloud session) · **Model:** _[fill in]_ · **Reasoning effort:** _[fill in]_ · **Work:** November 13, 2026 · **Result:** [`jax-migration` branch](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration)
+**Researcher:** Gaoyuan Wu · **Tool:** Claude Code (cloud session) · **Model:** _Opus 5.5_ · **Reasoning effort:** _Medium_ · **Work:** November 13, 2026 · **Result:** [`jax-migration` branch](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration)
 
-**Task:** port my first-year grad-school course project (2D frame finite elements with four time integrators, NumPy, 2021) to JAX. The port had to reproduce the old forward results, add gradients, and prove both against external references. A differentiable solver enables sensitivity analysis and gradient-based design, but only if I can trust it.
+**Task:** migrate a [legacy code](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/f2d2b60), my first-year grad-school course project (2D frame finite elements with four time integrators, NumPy, 2021). to JAX. The port had to reproduce the old forward results, add gradients, and prove both against external references. A differentiable solver enables sensitivity analysis and gradient-based design, but only if I can trust it.
 
 This example follows the actual user requests. The prompts are quoted verbatim. Results summarize the agent's replies and repository changes, not a rerun. The before/after figures are the actual files from the session's commits.
 
