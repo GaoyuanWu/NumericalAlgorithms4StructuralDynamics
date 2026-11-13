@@ -1,25 +1,22 @@
-# Demo: turning a 5-year-old NumPy dynamics solver into a verified, differentiable JAX solver
+# Demo: porting a 2021 NumPy dynamics solver to a verified, differentiable JAX solver
 
-**Researcher:** Gaoyuan Wu · **Tool:** Claude Code (cloud session) · **Model:** _[presenter: fill in]_ · **Work:** November 13, 2026 · **Result:** branch [`jax-migration`](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration)
+**Researcher:** Gaoyuan Wu · **Tool:** Claude Code (cloud session) · **Model:** _[fill in]_ · **Reasoning effort:** _[fill in]_ · **Work:** November 13, 2026 · **Result:** [`jax-migration` branch](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration)
 
-**Task:** port my first-year grad-school course project (2D frame FEM with four time integrators, NumPy, 2021) to JAX. The port had to reproduce the old forward results exactly, add gradients, and prove both with external references. This matters because a differentiable solver enables sensitivity analysis and gradient-based design, but only if I can trust it.
+**Task:** port my first-year grad-school course project (2D frame finite elements with four time integrators, NumPy, 2021) to JAX. The port had to reproduce the old forward results, add gradients, and prove both against external references. A differentiable solver enables sensitivity analysis and gradient-based design, but only if I can trust it.
 
-This page follows the actual session. The prompt is quoted verbatim. Results summarize what the agent did and what the tests showed. [Full prompt log and session timeline](PROMPTS.md).
+This example follows the actual user requests. The prompts are quoted verbatim. Results summarize the agent's replies and repository changes, not a rerun. The before/after figures are the actual files from the session's commits.
 
 ## 1. What I wanted
 
-The old code was plain NumPy: Python loops, Windows paths, no tests, and no gradients. I wanted a JAX version that:
+The old code was plain NumPy: Python loops, hard-coded Windows paths, no tests, and no gradients. I wanted a JAX version that gives the same answers, is checked against an independent open-source solver, gives gradients I can trust, and shows the structure vibrating under an earthquake.
 
-- gives the same answers as the old code;
-- is checked against an independent open-source solver;
-- gives gradients I can trust;
-- shows the structure vibrating under an earthquake.
+I supplied the repository, named the references, and pointed to this playbook. The agent did the reading, porting, testing, debugging, plotting and write-up. My role was to judge whether the evidence actually showed what it claimed.
 
-I supplied the repository, named the references (PyNite, finite differences), and pointed to the PI's demo guidelines. The agent did the reading, porting, testing, debugging, plotting and write-up.
+## 2. Inputs and the original prompt
 
-## 2. The original prompt
+**Input:** [the original 2021 repository](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/f2d2b60). It contains the mesh, element matrices, boundary conditions, four integrators (Newmark-β, Wilson-θ, Bathe, SSP-RK3), a 3-story frame study, a 1952 Kern County ground-motion record, and a SAP2000 result for comparison.
 
-**Prompt source:** verbatim (single message that started the session)
+**Prompt source:** verbatim (the single message that started the session)
 
 > Our research group is doing a AI workshop tomorrow where each member uses a demo to demonstrate what is good/bad practice of agentic workflow.
 >
@@ -29,154 +26,132 @@ I supplied the repository, named the references (PyNite, finite differences), an
 >
 > In addition to **code development**, Review the example and guideline of such demo provided by the PI: "https://github.com/SOLARIS-JHU/solaris-agentic-research", so that this code development procedure becomes a new example by me. Record this session, of what prompts that helped, did not help much.
 
-**Observed result of this first prompt:**
+**Observed result:** in one pass the agent:
 
-- a new package `structdyn_jax/` with the same mesh, FEM, BCs and four integrators, rewritten as `lax.scan` loops;
-- 43 automated tests, run on every push by GitHub Actions;
-- the earthquake animation, a verification figure and a sensitivity map;
-- a [verification report](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/blob/jax-migration/docs/VERIFICATION.md);
-- this page.
+- ported the solver into a new package;
+- wrote 43 automated tests, run by GitHub Actions on every push;
+- made an earthquake animation, a verification figure and a sensitivity figure;
+- wrote a first version of this page.
 
-The old code is kept untouched and used as the test reference.
+The original code was kept untouched as the test reference.
 
-![Frame at peak drift under the Kern County record](assets/frame_earthquake_peak.png)
+![The 3-story frame under the 1952 Kern County record (displacements ×250)](assets/frame_earthquake.gif)
 
-([animated version](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/blob/jax-migration/docs/figures/frame_earthquake.gif))
+Naming *external* checks (PyNite, finite differences) made every mismatch something to explain rather than a tolerance to relax. The agent reported four findings I would not have looked for:
 
-## 3. What the prompt made possible, and where the agent hit judgment calls
+- **A bug in my 2021 code.** The earthquake record was sometimes read one sample late, because `int(t/dt)` and `t % dt` disagree when `t/dt` rounds up. This changed the response by up to 6.7 % of the peak over the first 5 s. The agent did not copy the bug into the port. It defined "exact" as *same algorithm, same input*, which agrees to 1.5e-13, and flagged that definition for me to approve.
+- **A compiler pitfall in its own port.** Inside compiled JAX, the same `floor`/`mod` pair disagreed at different steps, which caused a 2 % mismatch on the first run. It was found by bisecting to a single time step.
+- **The SAP2000 benchmark drifts out of phase** after about 5 s, while PyNite agrees to 0.09 %. The agent tested hypotheses and found that a 0.5 % period difference explains it. It chose *not* to tune the model to SAP2000 and recorded the explanation as unverified.
+- **The first gradient check failed because of the finite differences, not the gradient.** A step-size study showed round-off for some parameters and truncation for others; Richardson extrapolation fixed it.
 
-The prompt named **external checks** (PyNite for forward, finite differences for backward). The agent therefore treated every mismatch as something to explain, not a tolerance to loosen. Five moments in the session show why that mattered.
+[Full prompt and assessment](PROMPTS.md#p01-scope-and-acceptance-criteria) · [What the agent did, step by step](PROMPTS.md#appendix-what-the-agent-did-after-p01-agent-summary-in-order).
 
-### A. "Exact forward" exposed a 2 % mismatch, then a bug in my 2021 code
+**Lesson:** acceptance criteria that point to *independent* references are the most valuable part of a coding prompt. What the prompt left open was what "exact" means, which tolerances apply, and what the figures should prove. That is where my follow-ups came in.
 
-The first parity run differed from the old solver by 2 %. The agent bisected it to one time step. Inside compiled JAX, `floor(t/dt)` and `mod(t, dt)` disagreed at a sample boundary, so the earthquake record jumped one sample ahead.
+## 3. The prompts that changed the result
 
-While fixing that, it found that **my original code has the same class of bug in plain Python**: `int(t/dt)` and `t % dt` disagree whenever `t/dt` rounds up. That reads the wrong sample at about 5 % of steps, changing the response over the first 5 s by up to **6.7 % of the peak displacement** (largest difference at any time and DOF, divided by the reference peak).
+All 43 tests passed before each of these follow-ups. The problems were in what the figures *communicated*, which no test checks.
 
-**Judgment call (mine to confirm):** the agent did *not* reproduce the bug bit-for-bit. It defined "exact" as *same algorithm, same forcing*: the unmodified legacy integrators agree with JAX to **1.5e-13**. A separate test pins and documents the legacy bug.
+### A. "What does the peak mean?": define every number on a figure
 
-**Lesson:** "exact" needs a definition. The agent made a defensible choice and flagged it, but that choice is a scientific decision a human should sign off.
+**Actual user message:**
 
-### B. Six more legacy quirks, documented, not silently "fixed"
-
-The agent found six more quirks and listed each with its measured effect and a switch to reproduce it ([table](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/blob/jax-migration/docs/VERIFICATION.md#4-legacy-quirks-found-during-the-port)):
-
-- the ground-motion influence vector was all ones, so vertical and rotational DOFs were "shaken" too (negligible here: 0.983 vs 0.982);
-- the Excel header swallowed the first record sample;
-- Newmark started from zero acceleration;
-- a roller support was counted as two constrained DOFs;
-- `arccos` element angles give infinite derivatives for horizontal members, which would make geometry gradients NaN;
-- hard-coded Windows paths and a mislabeled docstring (cosmetic).
-
-**Lesson:** porting is an audit. Ask for discrepancies to be *measured and reported*, not just removed.
-
-### C. PyNite agreed to 1e-8; SAP2000 did not fully, and the agent refused to overfit
-
-PyNite built its own matrices and agreed to 1e-10 (K, M) and 1e-8 (static deflections and frequencies). Time histories matched an exact modal solution on PyNite's matrices with a largest error at any time of **0.09 %** of the reference peak, and 0.003 % at the instant of the peak.
-
-The 2021 SAP2000 benchmark matched the **peak magnitude within 1.7 %**. The full history drifted out of phase: correlation 0.79, and an error of 30 % of the peak at the instant SAP2000 peaks. The agent tested the hypotheses one at a time:
-
-- damping did not explain it (it ruined the peak);
-- a 0.5 % period difference did (correlation rises to 0.995), which is consistent with SAP2000's default shear deformation.
-
-It then chose **not** to calibrate the model to SAP2000. It asserted only what is justified and wrote the explanation down as a hypothesis.
-
-![Verification: legacy parity, PyNite, SAP2000](assets/verification.png)
-
-**Lesson:** an independent, open reference (PyNite) is worth more than a closed one (SAP2000). A good agent says "plausible, unverified" instead of tuning to match.
-
-### D. The first gradient check failed, and it was the finite differences
-
-On the non-smooth "peak drift" objective, AD and FD differed by 1.4e-5. Instead of loosening the tolerance, the agent ran a step-size study:
-
-- for stiffness, the FD error *grew* as the step shrank (round-off);
-- for story height, it grew as ε² (truncation).
-
-No single step serves both, so it switched to Richardson-extrapolated FD. All 28 gradients for 4 integrators now agree with FD to ≤ 1e-5, and to 4e-9 in the figure. Forward and reverse mode agree to 1e-10.
-
-![Sensitivity map and gradient check](assets/sensitivity.png)
-
-**Lesson:** when a gradient check fails, check the finite differences before blaming AD.
-
-### E. Figures needed render-and-look iterations
-
-The first sensitivity figure had overlapping labels and an outlier-dominated scatter. The agent rendered, inspected and fixed it three times. Automated checks cannot catch this.
-
-### F. Follow-up: "what does the peak mean?"
-
-**Prompt source:** verbatim (second message of the session)
-
-> For the verification image `docs/figures/verification.png`, what does the peak mean?
-> i) did you mean the peak error?
-> ii) or did you mean the error when the roof's displacement goes to the peak.
+> For the verification image `docs/figures/verification.png`, what does the peak mean?\
+> i) did you mean the peak error?\
+> ii) or did you mean the error when the roof's displacement goes to the peak.\
 > Fix the ambiguity.
 >
 > It might also be helpful to output .csv files that record time history of what you plotted for different solver/setup.
 
-**Observed result:** the agent's "max error 1.5e-13 of peak" meant neither reading exactly. It was the largest error at any time divided by the reference peak. Checking it also exposed two inconsistencies the agent had not noticed:
+| Before | After |
+|---|---|
+| ![Verification figure before: titles say "max error 1.5e-13 of peak"](assets/verification-before.png) | ![Verification figure after: two named metrics, error strips, definitions](assets/verification-after.png) |
 
-- one panel's number was computed over all DOFs while only the roof was plotted;
-- the SAP2000 "peak ratio" compared peaks at different instants. At the instant SAP2000 peaks, the error is actually **30 %**.
+**What changed:**
 
-The figure now shows both metrics (ε_max and ε_peak) with their times and an error strip. The docs define the notation, and every plotted history is exported to CSV.
+| | Before | After |
+|---|---|---|
+| Metric in the titles | "max error 1.5e-13 **of peak**". This meant neither of my two readings: it was the largest error at *any* time divided by the reference peak. | Two named metrics, each with the time it occurs: **ε_max** (largest error at any time) and **ε_peak** (error at the instant of the reference peak). A footnote gives both formulas. |
+| Panel (a) | The number was computed over **all DOFs**, while only the roof was plotted. | Computed on the plotted roof DOF. |
+| SAP2000 panel | "peak ratio 0.983", which reads as good agreement. | Peak ratio 0.983 **and** ε_peak = **30 %**. The peaks are similar in size but occur at different times because of phase drift. |
+| Error visibility | Overlaid curves only; a 1e-13 error is invisible. | An error-vs-time strip under each panel, with both metric instants marked. |
+| Raw data | None. | Every plotted history as a CSV, with the full setup in its header lines. |
+| Rest of the docs | "of peak" used loosely throughout. | A notation section in the verification report; every "of peak" now names its metric and whether it covers the roof or all DOFs. |
 
-**Lesson:** a domain expert reading one label carefully caught what 43 passing tests could not. Ask the agent to *define* every summary number, and ask for the raw data behind every plot so you can check it yourself.
+**Lesson:** a careful domain-expert reading of one label found an ambiguity, a mismatch between what was computed and what was plotted, and a misleadingly good-looking number (0.983 hid a 30 % error at the peak). Ask for every summary number to be *defined*, and for the raw data behind every plot. [Full prompt](PROMPTS.md#p02-define-every-number-on-a-figure) · [Resulting change](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/commit/cdb1028).
 
-### G. Follow-up: "I have no idea what it verifies"
+### B. "I have no idea what it verifies": make every panel explain itself
 
-**Prompt source:** verbatim (third message of the session)
+**Actual user message:**
 
-> For gradient check figure,
-> i) left-hand side, define what J is next to the first sub-figure, not at subscript.
-> ii) middle, I have no idea what it verifies/outputs. Context needed.
+> For gradient check figure,\
+> i) left-hand side, define what J is next to the first sub-figure, not at subscript.\
+> ii) middle, I have no idea what it verifies/outputs. Context needed.\
 > iii) right hand side, what are the 28 design parameters, briefly mention what they are (in category groups)
 
-**Observed result:** every panel now has an explanation block, as shown in §D. The middle panel had only *displayed* numbers. It now *verifies* them: each gradient prediction is paired with a re-simulation of the scaled design. That check also revealed a visible curvature effect for story height (4.00 % predicted vs 3.95 % simulated), which the figure explains.
-
-**Lesson:** the agent's figures were designed for someone who already knew the setup. "What does this verify?" is a good question to ask about every panel. A panel that only displays a result should either be cut or turned into a check.
-
-## 4. Final result and researcher checks
-
-| | Who checked |
+| Before | After |
 |---|---|
-| Legacy parity 1.5e-13; PyNite K/M/static/modal ≤ 1e-8; time history 0.09 %; SDOF convergence orders 2/2/2/3; 28 gradients vs FD | Agent (automated tests, re-run in CI) |
-| "Exact" defined as same algorithm + same forcing (§A) | **Researcher to confirm** |
-| Legacy quirks are real bugs, not intended modelling choices (§B) | **Researcher to confirm** (I wrote that code) |
-| SAP2000 drift explanation (shear deformation) | Hypothesis only; unverified |
-| Sensitivity signs make physical sense (stiffer → less drift, heavier/taller → more) | **Researcher to confirm** |
+| ![Sensitivity figure before: objective defined only in a footnote, unexplained bar chart](assets/sensitivity-before.png) | ![Sensitivity figure after: explanation above each panel, re-simulation check, grouped parameters](assets/sensitivity-after.png) |
 
-**Remaining limitations:** linear elastic Euler–Bernoulli only; SSP-RK3 is impractical on fine meshes (explicit, stiff axial modes); no checkpointing for long reverse-mode runs.
+**What changed:**
 
-**Takeaway:** name the external references and the *kind* of agreement you expect up front. Then a mismatch becomes a finding (two real bugs, one compiler pitfall, one FD pitfall) instead of a tolerance to relax.
+| Panel | Before | After |
+|---|---|---|
+| (a) per-member sensitivity | The objective J was defined only in a footnote under the whole figure. | J is defined next to the panel (RMS roof displacement, 0–15 s, J₀ = 0.94 mm), together with what the number on each member means. |
+| (b) group sensitivities | A bar chart titled "Global elasticities of J". It showed numbers but verified nothing. | The bars are labelled as the gradient's *prediction* for scaling a whole group by 1 %. **New check:** ◇ markers from re-running the simulation with each group scaled ±1 %. Three groups agree to within 0.02 percentage points; story height shows 4.00 % predicted vs 3.95 % simulated, explained as curvature over a finite 1 % step. |
+| (c) gradient check | x-axis "gradient entry (28 design parameters)", unexplained. | The 28 parameters are listed by group (13 member EI, 13 member masses, damping ratio ζ, story-height scale), and the x-axis is grouped the same way. |
 
-## 5. Which parts of the prompt helped, and which did not
+**Lesson:** the agent drew figures for someone who already knew the setup. "What does this panel verify?" is worth asking of every panel. Here it turned a display into an actual check, which also surfaced a real nonlinear effect. [Full prompt](PROMPTS.md#p03-make-every-panel-explain-what-it-verifies) · [Resulting change](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/commit/f40b0ab).
 
-| Prompt element | Effect |
+### C. Package the result for this playbook
+
+**Actual user message:**
+
+> Now, update the `agentic-demo` folder to be ready to sent to the group repo, based on my new prompts earlier (what worked, how it changed the results - before v.s. after), following the template on the group repo.
+
+**What changed:**
+
+- The agent re-read this playbook's template and worked example (both unchanged since its first read).
+- It recovered the "before" figures from the session's commit history and rewrote this page around the follow-ups.
+- It kept the [prompt log](PROMPTS.md) up to date.
+
+**Lesson:** "record what helped" works best when the follow-ups are recorded *as they happen*. The agent added each prompt to the log in the same turn it acted on it, so nothing had to be reconstructed at the end. [Full prompt](PROMPTS.md#p04-package-the-example-for-this-playbook).
+
+## 4. Result and lessons learned
+
+**Final state** (all tests re-run by GitHub Actions on every push):
+
+| Check | Result |
 |---|---|
-| **"checks against open-source solver PyNite (forward), and gradient check using finite difference"** | **Most useful.** It gave concrete acceptance criteria. Every major discovery (§A, C, D) came from a check failing. |
-| **"with the exact forward ability"** | **Useful but ambiguous.** It drove the parity tests that found the legacy bug, but did not say whether "exact" means bit-identical (impossible here) or same algorithm. The agent had to decide. |
-| **Pointing to the PI's guideline repo** | **Useful.** It fixed the output format (this page) without extra instructions. The repo was private, so the agent first had to attach it through the GitHub integration. |
-| **"Visuals would be great to show how structures vibrate"** | **Okay.** It produced the animation, but left scale, duration and plot choices open. Fine for a demo; for a paper I would specify them. |
-| **"Everything tested online"** | **Ambiguous.** The agent read it as "run in the cloud session and on GitHub Actions on every push". If you meant something else (e.g. Colab), say so. |
-| **Not specified:** tolerances, which integrators, which structure, which parameters to differentiate, what objective | The agent chose sensible defaults (all four integrators, the original 3-story frame, 28 design parameters, RMS/peak roof drift) and listed them. Each is a silent decision the researcher should skim. |
+| Same algorithm and input as the 2021 code | ε_max = 1.5e-13 |
+| PyNite: assembled matrices · static deflections · first 8 frequencies | ≤ 1e-10 · 1e-8 · 1e-8 |
+| PyNite: 10 s earthquake history vs an exact modal solution | ε_max = 0.09 % |
+| SAP2000 (original benchmark) | peak ratio 0.983; ε_peak = 30 % from phase drift (explained, not tuned away) |
+| Gradients vs finite differences: 28 parameters × 4 integrators | ≤ 1e-5 (typically 1e-7) |
+| Single-mass-spring closed form | expected convergence orders 2, 2, 2, 3 |
 
-## Suggested prompt for reuse (newly written, not from the session)
+- **What worked:** naming independent references up front; keeping the old code untouched as a reference; asking the agent to measure and report bugs instead of silently fixing them; short, specific questions about one figure at a time.
+- **What failed:** the first figures defined their numbers loosely ("of peak"); one metric did not match what was plotted; one panel verified nothing. None of this was caught by 43 passing tests. Earlier, the first parity run and the first gradient check failed; the agent diagnosed both instead of loosening tolerances.
+- **What the researcher checked:** the metric definitions and that each number matches its curve; what each figure panel proves; that the sensitivity signs make physical sense (stiffer → less drift, heavier or taller → more). **Still to confirm:** that the 2021 interpolation behaviour is a bug and not intended, and that "exact" may mean same algorithm and input rather than bit-identical. The SAP2000 explanation (shear deformation) remains an unverified hypothesis.
+- **Limitations:** linear elastic Euler–Bernoulli frames only; the explicit SSP-RK3 scheme is impractical on fine meshes; no memory checkpointing for long reverse-mode runs.
 
-> Port [legacy code] to [new framework]. Keep the original code untouched and use it as the reference. Forward results must match the original to [tolerance] for [cases]; if they cannot, find out why, measure the effect, and ask me before changing the definition of "match". Cross-check against [independent open-source tool] at the level of matrices, a static case, eigenvalues, and one time history. Check gradients for every parameter against finite differences, and study the FD step before blaming the gradient. Report every bug you find in the original code with its measured effect instead of silently fixing it. Run all tests in CI, render the figures, and look at them before calling it done.
+## 5. Try the workflow by prompting your agent
 
-## Suggested follow-ups for the live demo (newly written)
+**Suggested reuse prompt (newly written, not an original quotation):**
 
-1. *"Explain the legacy interpolation bug to me with one concrete time step, then convince me the 6.7 % number is right."* This tests whether the agent can defend a finding.
-2. *"Use the gradient to reduce peak roof drift by 20 % with a fixed total column material budget, and show the redesigned frame."* This shows the backward capability doing something useful.
+> Port [legacy code] to [new framework]. Keep the original code untouched and use it as the reference. Forward results must match the original to [tolerance] for [cases]; if they cannot, find out why, measure the effect, and ask me before changing what "match" means. Cross-check against [independent open-source tool] at the level of matrices, a static case, eigenvalues, and one time history. Check gradients for every parameter against finite differences, and study the finite-difference step before blaming the gradient. Report every bug you find in the original code with its measured effect. Run all tests in CI. For every figure, define each number in it, say what each panel verifies, and export the plotted data as CSV. Render the figures and look at them before calling it done.
+
+Then review the figures one at a time. Ask "what exactly does this number mean?" and "what does this panel verify?". For a 5–10 minute demo, show the original prompt, follow-up A with its before/after, and one judgment call you had to make (§2, the definition of "exact").
 
 <details>
-<summary>Optional: supporting material</summary>
+<summary>Optional: original records, code, and data</summary>
 
-- [Prompt log and session timeline](PROMPTS.md)
-- [Verification report with all numbers](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/blob/jax-migration/docs/VERIFICATION.md)
-- [JAX package](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration/structdyn_jax) · [tests](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration/tests) · [figure script](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/blob/jax-migration/scripts/make_figures.py) · [CI workflow](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/blob/jax-migration/.github/workflows/tests.yml)
+- [Prompt log with all four prompts and a session timeline](PROMPTS.md)
+- [Verification report](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/blob/jax-migration/docs/VERIFICATION.md): metric definitions, every check, and the bugs found in the 2021 code
+- [Plotted time histories (CSV)](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration/docs/figures/data)
+- [JAX package](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration/structdyn_jax) · [tests](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/tree/jax-migration/tests) · [figure script](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/blob/jax-migration/scripts/make_figures.py) · [CI runs](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/actions/workflows/tests.yml)
+- Commits: [initial port](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/commit/de48845) · [follow-up A](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/commit/cdb1028) · [follow-up B](https://github.com/GaoyuanWu/NumericalAlgorithms4StructuralDynamics/commit/f40b0ab)
 
 </details>
 
 [Back to the playbook](../../README.md) · [Getting started](../../GETTING_STARTED.md) · [Demo template](../../templates/DEMO_TEMPLATE.md)
-<!-- The three navigation links above resolve once this folder is copied to examples/<name>/ in solaris-agentic-research. -->

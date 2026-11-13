@@ -1,6 +1,6 @@
-# Prompt log and session timeline
+# Prompt log: the JAX solver migration
 
-The user prompts are copied verbatim. The timeline entries are a summary of what the agent did, written by the agent at the end of the session. They are not quotations. [Back to the demo](README.md).
+All four user messages from the session, copied verbatim in order. "What changed" notes summarize the agent's replies and commits; they are not quotations. The appendix summarizes the agent's work after the first prompt. This is optional reference material: the [workflow example](README.md) explains the important decisions without requiring you to read this page.
 
 ## P01: Scope and acceptance criteria
 
@@ -14,9 +14,72 @@ The user prompts are copied verbatim. The timeline entries are a summary of what
 >
 > In addition to **code development**, Review the example and guideline of such demo provided by the PI: "https://github.com/SOLARIS-JHU/solaris-agentic-research", so that this code development procedure becomes a new example by me. Record this session, of what prompts that helped, did not help much.
 
-**Assessment:** see [§5 of the demo](README.md#5-which-parts-of-the-prompt-helped-and-which-did-not).
+**What changed:**
 
-## Session timeline (agent summary, in order)
+- New JAX package, 43 tests in CI, an animation, verification and sensitivity figures, and a first version of the demo page.
+- Four findings: a record-interpolation bug in the 2021 code, a compiler pitfall in the port, SAP2000 phase drift, and a finite-difference artefact in the first gradient check (details in the appendix).
+
+**How this prompt helped, and where it fell short:**
+
+| Prompt element | Effect |
+|---|---|
+| "checks against open-source solver PyNite (forward), and gradient check using finite difference" | **Most useful.** Concrete external acceptance criteria. Every major discovery came from one of these checks failing. |
+| "with the exact forward ability" | **Useful but ambiguous.** It drove the parity tests that found the 2021 bug, but did not say whether "exact" means bit-identical (impossible here) or same algorithm. The agent had to decide and flag it. |
+| Link to this playbook | **Useful.** It set the output format. The repository was private, so the agent attached it through the GitHub integration first. |
+| "Visuals would be great to show how structures vibrate" | **Partly useful.** It produced the animation, but nothing asked the figures to define their numbers. Follow-ups P02 and P03 were needed for that. |
+| "Everything tested online" | **Ambiguous.** Interpreted as "run in the cloud session and in GitHub Actions on every push". |
+| Not specified: tolerances, integrators, structure, design parameters, objective | The agent chose defaults (all four integrators, the original 3-story frame, 28 parameters, RMS/peak roof drift) and listed them for review. |
+
+## P02: Define every number on a figure
+
+**November 13, 2026 · Verbatim user message**
+
+> For the verification image `docs/figures/verification.png`, what does the peak mean?\
+> i) did you mean the peak error?\
+> ii) or did you mean the error when the roof's displacement goes to the peak.\
+> Fix the ambiguity.
+>
+> It might also be helpful to output .csv files that record time history of what you plotted for different solver/setup.
+
+**What changed:**
+
+- The agent answered "neither": every "x of peak" meant max_t|u − u_ref| / max_t|u_ref|.
+- While checking, it found that the panel (a) number had been computed over all DOFs although only the roof is plotted, and that the SAP2000 "peak ratio" compared peaks at different times.
+- The figure now reports two named metrics per panel, ε_max (largest error at any time) and ε_peak (error at the reference peak). Each is computed on the plotted roof DOF, marked on a new error-vs-time strip, and labelled with the time at which it occurs.
+- `docs/VERIFICATION.md` gained a notation section, and every "of peak" phrase in the docs and tests now names its metric and scope.
+- The plotted histories are written to `docs/figures/data/*.csv`, with the full setup in the header lines.
+- New, previously hidden fact: SAP2000's peak-magnitude ratio is 0.983, but at the instant SAP2000 peaks the error is 30 % (phase drift).
+
+## P03: Make every panel explain what it verifies
+
+**November 13, 2026 · Verbatim user message**
+
+> For gradient check figure,\
+> i) left-hand side, define what J is next to the first sub-figure, not at subscript.\
+> ii) middle, I have no idea what it verifies/outputs. Context needed.\
+> iii) right hand side, what are the 28 design parameters, briefly mention what they are (in category groups)
+
+**What changed:**
+
+- Each panel now has an explanation block above it.
+- (a) defines J (RMS roof displacement, 0–15 s, J₀ = 0.94 mm) and what each member number means.
+- (b) was a bare bar chart of group elasticities. It now states that the bars are the gradient's *prediction* for scaling a whole group by 1 %, and adds a new check: ◇ markers from actually re-running the simulation with each group scaled ±1 %. They agree to within 0.02 percentage points except story height (4.00 vs 3.95), which the figure attributes to curvature over the finite step.
+- (c) lists the 28 parameters by group (13 EI, 13 masses, ζ, story height), and the x-axis is grouped and labelled accordingly.
+
+## P04: Package the example for this playbook
+
+**November 13, 2026 · Verbatim user message**
+
+> Now, update the `agentic-demo` folder to be ready to sent to the group repo, based on my new prompts earlier (what worked, how it changed the results - before v.s. after), following the template on the group repo.
+
+**What changed:**
+
+- The agent re-read the playbook template and worked example (both unchanged since its first read).
+- It recovered the "before" versions of the two figures from the session's commit history.
+- It rewrote the demo page around follow-ups P02 and P03, with before/after figures and tables.
+- It restructured this log and made the folder self-contained (all images in `assets/`).
+
+## Appendix: what the agent did after P01 (agent summary, in order)
 
 1. **Read everything first.** The agent read the whole legacy repo (mesh, FEM, BCs, four integrators, two study scripts, the ground-motion and SAP2000 data). Cloning the PI repo anonymously failed because it is private. The agent attached it through the GitHub integration, then read the README, getting-started guide, demo template and worked example.
 2. **Probed the tools before relying on them.** It installed JAX and PyNite 3.2 and inspected PyNite's API. PyNite turned out to use the *same* consistent-mass coefficients, which enabled a matrix-level comparison and not only displacements.
@@ -38,42 +101,4 @@ The user prompts are copied verbatim. The timeline entries are a summary of what
 10. **Figures.** Animation, verification plot, sensitivity map and mode shapes, using a validated colorblind-safe palette. The agent rendered and inspected them; three iterations fixed label collisions and an outlier-dominated scatter. The GIF went from 7 MB to 3.7 MB.
 11. **CI and docs.** GitHub Actions on Python 3.11 and 3.12 (tests plus a figure smoke run). Wrote the README section, `docs/VERIFICATION.md` and this demo. Pushed to `jax-migration` and watched CI.
 
-## P02: Fix an ambiguous metric
-
-**November 13, 2026 · Verbatim user message**
-
-> For the verification image `docs/figures/verification.png`, what does the peak mean?
-> i) did you mean the peak error?
-> ii) or did you mean the error when the roof's displacement goes to the peak.
-> Fix the ambiguity.
->
-> It might also be helpful to output .csv files that record time history of what you plotted for different solver/setup.
-
-**What changed:**
-
-- The agent answered "neither": every "x of peak" meant max_t|u − u_ref| / max_t|u_ref|.
-- While checking, it found that the panel (a) number had been computed over all DOFs although only the roof is plotted, and that the SAP2000 "peak ratio" compared peaks at different times.
-- The figure now reports two named metrics per panel, ε_max (largest error at any time) and ε_peak (error at the reference peak). Each is computed on the plotted roof DOF, marked on a new error-vs-time strip, and labelled with the time at which it occurs.
-- `docs/VERIFICATION.md` gained a notation section, and every "of peak" phrase in the docs and tests now names its metric and scope.
-- The plotted histories are written to `docs/figures/data/*.csv`, with the full setup in the header lines.
-- New, previously hidden fact: SAP2000's peak-magnitude ratio is 0.983, but at the instant SAP2000 peaks the error is 30 % (phase drift).
-
-## P03: Make the gradient figure self-explanatory
-
-**November 13, 2026 · Verbatim user message**
-
-> For gradient check figure,
-> i) left-hand side, define what J is next to the first sub-figure, not at subscript.
-> ii) middle, I have no idea what it verifies/outputs. Context needed.
-> iii) right hand side, what are the 28 design parameters, briefly mention what they are (in category groups)
-
-**What changed:**
-
-- Each panel now has an explanation block above it.
-- (a) defines J (RMS roof displacement, 0–15 s, J₀ = 0.94 mm) and what each member number means.
-- (b) was a bare bar chart of group elasticities. It now states that the bars are the gradient's *prediction* for scaling a whole group by 1 %, and adds a new check: ◇ markers from actually re-running the simulation with each group scaled ±1 %. They agree to within 0.02 percentage points except story height (4.00 vs 3.95), which the figure attributes to curvature over the finite step.
-- (c) lists the 28 parameters by group (13 EI, 13 masses, ζ, story height), and the x-axis is grouped and labelled accordingly.
-
-## P04+: follow-ups
-
-_Add the next prompts here verbatim, with a one-line note on what changed after each._
+[Back to the workflow](README.md)
